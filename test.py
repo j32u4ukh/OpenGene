@@ -1,4 +1,5 @@
 import numpy as np
+from matplotlib import pyplot as plt
 
 
 class GeneNode:
@@ -112,9 +113,15 @@ class GeneNode:
         return False
 
 
-def createGenome(length):
-    gene = np.random.randint(low=0, high=2, size=length)
-    str_gene = str(gene).strip("[]").replace(" ", "")
+def createGenome(n_gene, digits=8):
+    high = pow(2, digits)
+    str_format = "{0:0" + str(digits) + "b}"
+    gene = np.random.randint(low=0, high=high, size=n_gene)
+    str_gene = ""
+
+    for g in gene:
+        str_gene += str_format.format(g)
+
     return str_gene
 
 
@@ -200,3 +207,27 @@ for val in order_dict[s1]:
 for val in order_dict[s2]:
     n2.add(root=s2, leaf=val)
 
+"""
+計算'前一筆數值'和'後一筆數值'之間的相關性，目前設計為'間隔基因片段長度的一半'，可以獲得低相關的數據
+"""
+n_gene = 12
+digits = 8
+gene = createGenome(n_gene=n_gene, digits=digits)
+print(gene)
+
+value = []
+
+for i in range(0, n_gene - digits, 4):
+    temp = gene[i: i + digits]
+    print(i, i + digits)
+    val = int(temp, 2)
+    value.append(val)
+
+n_value = len(value)
+
+x = value[:-1]
+y = value[1:]
+plt.scatter(x, y)
+plt.show()
+
+print(np.corrcoef([x, y]))
