@@ -3,8 +3,14 @@ from matplotlib import pyplot as plt
 
 
 class GeneNode:
-    def __init__(self, val):
+    def __init__(self, val, root=None):
+        # 上一層 GeneNode 的 數值/id
+        self.root = root
+
+        # 這個 GeneNode 的 數值/id
         self.val = val
+
+        # 下一層的 GeneNode 們
         self.nodes = []
 
     def __len__(self):
@@ -43,28 +49,28 @@ class GeneNode:
 
     __repr__ = __str__
 
-    def __add__(self, other):
+    def add(self, other):
         """
-        從 root 連接到 leaf
 
         :param other: 其他 GeneNode
         :return:
         """
-        # root: 上層 GeneNode 數值
-        # leaf: 下層 GeneNode 數值
         if self.val == other.root:
             for node in self.nodes:
-                if node.val == other.leaf:
-                    print(f"已有 GeneNode({other.leaf})")
+                if node.val == other.val:
+                    print(f"已有 GeneNode({other.val})")
                     break
 
-            self.nodes.append(GeneNode(val=other.leaf))
+            self.nodes.append(GeneNode(val=other.val, root=self.val))
         else:
             for node in self.nodes:
                 if node.val == other.root:
-                    node.add(GeneNode(val=other.leaf))
+                    node.add(GeneNode(val=other.val))
 
-    def __sub__(self, other):
+    def sub(self, other):
+        # 移除當前 GeneNode 連結到 other 之間的連線，other 及其子 GeneNode 則返回
+        remainder = None
+
         if self.val == other.root:
             n_node = len(self.nodes)
 
@@ -73,6 +79,7 @@ class GeneNode:
 
                 if node.val == other.val:
                     self.nodes = [self.nodes[j] for j in range(n_node) if j != i]
+                    remainder = node
                     break
 
         for node in self.nodes:
@@ -80,24 +87,7 @@ class GeneNode:
                 node.__sub__(other)
                 break
 
-    def add(self, root, leaf):
-        """
-
-        :param root: 上層 GeneNode 數值
-        :param leaf: 下層 GeneNode 數值
-        :return:
-        """
-        if self.val == root:
-            for node in self.nodes:
-                if node.val == leaf:
-                    print(f"已有 GeneNode({leaf})")
-                    break
-
-            self.nodes.append(GeneNode(val=leaf))
-        else:
-            for node in self.nodes:
-                if node.val == root:
-                    node.add(GeneNode(val=leaf))
+        return remainder
 
     def inLeaf(self, other):
         """
@@ -126,17 +116,17 @@ def createGenome(n_gene, digits=8):
 
 
 def construct(structure_genome):
-    # TODO: 排除自己連接到自己
     xs, ys = np.where(structure_genome == 1)
-    x_set, y_set = set(), set()
-    order_dict = dict()
-
-    for (x, y) in zip(xs, ys):
-        if not order_dict.__contains__(x):
-            order_dict[x] = []
-
-        if x != y:
-            order_dict[x].append(y)
+    # x_set, y_set = set(), set()
+    # order_dict = dict()
+    #
+    # for (x, y) in zip(xs, ys):
+    #     if not order_dict.__contains__(x):
+    #         order_dict[x] = []
+    #
+    #     if x != y:
+    #         order_dict[x].append(y)
+    # TODO: 排除自己連接到自己
 
     full = np.union1d(xs, ys)
     start = np.setdiff1d(full, ys)
