@@ -1,6 +1,7 @@
 import numpy as np
 
-from cell import Cell, call
+from cell import CellDemo, call
+from gene import createGene, translateStruct
 
 """
 結構一開始提供直線型串接，最終應提供網狀結構，'直線型'為'網狀結構'的退化型。
@@ -24,20 +25,6 @@ class CellNet:
         for cell in self.cells:
             cell.compile(data=[], last_channel=last_channel)
             last_channel = cell.output_size
-
-
-# 產生 n_gene 個 0/1 基因
-def createGenome(n_gene):
-    gene = np.random.randint(low=0, high=2, size=n_gene)
-    return gene
-
-
-# 轉譯架構類基因(不同於定義數值的基因)
-def translateStruct(gene: np.array):
-    struct_multiplier = np.array([2, 1])
-    index = (gene * struct_multiplier).sum() + 1
-
-    return index
 
 
 def circleData(full, start_index, length):
@@ -103,7 +90,7 @@ if __name__ == "__main__":
     input_data = np.random.rand(last_channel, 4, 4)
 
     # struct_gene: 用於定義'結構'的基因組
-    struct_gene = createGenome(n_gene=12)
+    struct_gene = createGene(n_gene=12)
 
     # 激勵函數的代碼
     activation_code = translateStruct(struct_gene[0: 2])
@@ -117,12 +104,12 @@ if __name__ == "__main__":
     # 輸出數據深度
     output_size = translateStruct(struct_gene[10: 12])
 
-    cell = Cell(digits=8,
-                steps=4,
-                activation_code=activation_code,
-                filter_size=filter_size,
-                window_number=window_number,
-                output_size=output_size)
+    cell = CellDemo(digits=8,
+                    steps=4,
+                    activation_code=activation_code,
+                    filter_size=filter_size,
+                    window_number=window_number,
+                    output_size=output_size)
 
     # max n_gene = 4 * 4 * 8 * 2 + 4 * 4 * 64 * 4 * 8 = 33024
     n_gene = (cell.h_filter * cell.w_filter * cell.digits * 2 +
@@ -130,7 +117,7 @@ if __name__ == "__main__":
     # n_gene = cell.digits + (cell.h_filter * cell.w_filter * 2 + cell.last_channel * cell.output_size - 1) * cell.steps
 
     # value_gene: 用於定義'結構當中數值'的基因組
-    value_gene = createGenome(n_gene=n_gene)
+    value_gene = createGene(n_gene=n_gene)
 
     # 根據 value_gene 編譯，設置 cell 當中的數值
     cell.compile(data=value_gene, last_channel=last_channel)

@@ -4,12 +4,40 @@ import cv2
 import numpy as np
 
 import utils.math as umath
+from gene import Gene, createGene
 
 
 class Cell:
     """
     Cell 如何解讀傳入的基因段，可以根據不同類型的 Cell 有不同的定義。
     """
+    def __init__(self, gene):
+        self.index = 0
+        self.gene = gene
+
+    def nextStructGenome(self, n_gene=2):
+        genome = self.gene[self.index: self.index + n_gene]
+        print(f"genome({self.index}, {self.index + n_gene})")
+        self.index += n_gene
+
+        return genome
+
+    def nextValueGenome(self):
+        """
+        TODO: 由於一開始不知道需要多少基因，或許可以在建立整個基因序列後，再確立序列的長度，然後再進行演化
+
+        :return: 返回長度為 Gene.digits 的基因組
+        """
+        n_gene = len(self.gene)
+        start = self.index
+
+        for self.index in range(start, n_gene, Gene.steps):
+            genome = self.gene[self.index: self.index + Gene.digits]
+            print(f"genome({self.index}, {self.index + Gene.digits})")
+            yield genome
+
+
+class CellDemo:
     activation_dict = {1: umath.origin,
                        2: umath.relu,
                        3: umath.sigmoid,
@@ -23,7 +51,7 @@ class Cell:
         self.steps = steps
 
         # activation(2): 0.origin 1.relu 2.sigmoid 3.abs(取絕對值)
-        self.activate_func = Cell.activation_dict[activation_code]
+        self.activate_func = CellDemo.activation_dict[activation_code]
 
         # 濾波器尺寸
         self.h_filter, self.w_filter = filter_size
@@ -307,3 +335,15 @@ def reconstructParam(input_size, filter_size, window_size):
             stride_size = (input_size - filter_size) / (window_size - 1)
 
     return pad_size, resize_size, math.floor(stride_size)
+
+
+if __name__ == "__main__":
+    gene = createGene(n_gene=24)
+    cell = Cell(gene)
+
+    # for _ in range(3):
+    #     genome = cell.nextStructGenome(n_gene=2)
+    #     print(genome)
+
+    for genome in cell.nextValueGenome():
+        print("nextValueGenome:", genome)
