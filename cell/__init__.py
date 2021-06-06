@@ -5,32 +5,16 @@ import numpy as np
 
 import utils.math as umath
 
-activation_dict = {1: umath.origin,
-                   2: umath.relu,
-                   3: umath.sigmoid,
-                   4: umath.absFunc}
-
-
-class CellNet:
-    def __init__(self):
-        self.cells = []
-
-    def __call__(self, x):
-        for cell in self.cells:
-            x = call(x, weights=cell.weights, bias=cell.bias, output_size=cell.output_size,
-                     last_channel=cell.last_channel, channels_array=cell.channels,
-                     filter_size=(cell.h_filter, cell.w_filter), window_size=(cell.h_window, cell.w_window),
-                     activate_func=cell.activate_func)
-
-        return x
-
-    def compile(self, last_channel=3):
-        for cell in self.cells:
-            cell.compile(data=[], last_channel=last_channel)
-            last_channel = cell.output_size
-
 
 class Cell:
+    """
+    Cell 如何解讀傳入的基因段，可以根據不同類型的 Cell 有不同的定義。
+    """
+    activation_dict = {1: umath.origin,
+                       2: umath.relu,
+                       3: umath.sigmoid,
+                       4: umath.absFunc}
+
     def __init__(self, digits=8, steps=8, activation_code=0, filter_size=(2, 2), window_number=(2, 2), output_size=1):
         # 使用幾個數值作為最小定義單位 -> 幾個 0/1 來換算成數值或定義結構
         self.digits = digits
@@ -39,7 +23,7 @@ class Cell:
         self.steps = steps
 
         # activation(2): 0.origin 1.relu 2.sigmoid 3.abs(取絕對值)
-        self.activate_func = activation_dict[activation_code]
+        self.activate_func = Cell.activation_dict[activation_code]
 
         # 濾波器尺寸
         self.h_filter, self.w_filter = filter_size
@@ -190,18 +174,64 @@ class Cell:
         self.channels = np.array(output_channels).reshape((self.output_size, -1))
 
 
-# 產生 n_gene 個 0/1 基因
-def createGenome(n_gene):
-    gene = np.random.randint(low=0, high=2, size=n_gene)
-    return gene
+def call(x, weights, bias, output_size, last_channel, channels_array: list,
+         filter_size=(2, 2), window_size=(2, 2), activate_func=umath.origin):
+    """
 
+    :param x:
+    :param weights:
+    :param bias:
+    :param output_size:
+    :param last_channel:
+    :param channels_array: 用於加權中間層(weight-bias層的輸出)的加權比例值
+    :param filter_size:
+    :param window_size:
+    :param activate_func:
+    :return:
+    """
+    h_filter, w_filter = filter_size
+    h_window, w_window = window_size
 
-# 轉譯架構類基因(不同於定義數值的基因)
-def translateStruct(gene: np.array):
-    struct_multiplier = np.array([2, 1])
-    index = (gene * struct_multiplier).sum() + 1
+    input_data, (h_stride, w_stride) = inputReconstruct(x,
+                                                        filter_shape=(h_filter, w_filter),
+                                                        window=(h_window, w_window))
+    output = []
 
-    return index
+    for h in range(h_window):
+        for w in range(w_window):
+            h_index = h * h_stride
+            w_index = w * w_stride
+
+            # 根據 h_index, w_index, h_filter, w_filter 取出要運算的區塊
+            patch = input_data[:, h_index: h_index + h_filter, w_index: w_index + w_filter]
+
+            # 運算後結果通過非線性的激勵函數
+            result = activate_func(patch * weights + bias)
+
+            # 區塊運算結果加總
+            result = result.sum(axis=0)
+            print(f"[call] result.shape: {result.shape}")
+
+            # 運算加總結果加入 output
+            output.append(result)
+
+    output = np.array(output)
+    print(f"[call] output.shape: {output.shape}")
+    outputs = []
+
+    print(f"[call] output_size: {output_size}, #channels_array: {len(channels_array)}")
+    for out in range(output_size):
+        # (#channels) = last_channel
+        channels = channels_array[out]
+
+        # 各深度的加權比例
+        channels = channels.reshape((last_channel, 1, 1))
+        channel = (output * channels).sum(axis=0)
+        outputs.append(channel)
+
+    outputs = np.array(outputs)
+
+    return outputs
 
 
 # 將 input_data 縮放成當前 filter & window 所需要的維度
@@ -277,166 +307,3 @@ def reconstructParam(input_size, filter_size, window_size):
             stride_size = (input_size - filter_size) / (window_size - 1)
 
     return pad_size, resize_size, math.floor(stride_size)
-
-
-def call(x, weights, bias, output_size, last_channel, channels_array: list,
-         filter_size=(2, 2), window_size=(2, 2), activate_func=umath.origin):
-    """
-
-    :param x:
-    :param weights:
-    :param bias:
-    :param output_size:
-    :param last_channel:
-    :param channels_array: 用於加權中間層(weight-bias層的輸出)的加權比例值
-    :param filter_size:
-    :param window_size:
-    :param activate_func:
-    :return:
-    """
-    h_filter, w_filter = filter_size
-    h_window, w_window = window_size
-
-    input_data, (h_stride, w_stride) = inputReconstruct(x,
-                                                        filter_shape=(h_filter, w_filter),
-                                                        window=(h_window, w_window))
-    output = []
-
-    for h in range(h_window):
-        for w in range(w_window):
-            h_index = h * h_stride
-            w_index = w * w_stride
-
-            # 根據 h_index, w_index, h_filter, w_filter 取出要運算的區塊
-            patch = input_data[:, h_index: h_index + h_filter, w_index: w_index + w_filter]
-
-            # 運算後結果通過非線性的激勵函數
-            result = activate_func(patch * weights + bias)
-
-            # 區塊運算結果加總
-            result = result.sum(axis=0)
-            print(f"[call] result.shape: {result.shape}")
-
-            # 運算加總結果加入 output
-            output.append(result)
-
-    output = np.array(output)
-    print(f"[call] output.shape: {output.shape}")
-    outputs = []
-
-    print(f"[call] output_size: {output_size}, #channels_array: {len(channels_array)}")
-    for out in range(output_size):
-        # (#channels) = last_channel
-        channels = channels_array[out]
-
-        # 各深度的加權比例
-        channels = channels.reshape((last_channel, 1, 1))
-        channel = (output * channels).sum(axis=0)
-        outputs.append(channel)
-
-    outputs = np.array(outputs)
-
-    return outputs
-
-
-def circleData(full, start_index, length):
-    """
-    讓 numpy 數列形成一個環，讓取值不會不足
-
-    :param full: 全部數值
-    :param start_index: 起始索引值
-    :param length: 要求長度
-    :return:
-    """
-    n_number = len(full)
-
-    if n_number - start_index >= length:
-        result = full[np.array(np.arange(start_index, start_index + length))]
-        next_index = (start_index + length) % n_number
-    else:
-        result = full[start_index:]
-
-        leftover_round, leftover_number = divmod(length - (n_number - start_index), n_number)
-
-        for r in range(leftover_round):
-            result = np.hstack([result, full])
-
-        result = np.hstack([result, full[:leftover_number]])
-        next_index = leftover_number
-
-    return next_index, result
-
-
-if __name__ == "__main__":
-    """
-    # 這兩種 cell 組成一組，避免維度爆炸
-    activation(2): 0.origin 1.relu 2.sigmoid 3.abs(取絕對值) 
-    cell type(1): 0.wh-oriented 1.channel-oriented
-    -----
-    wh-oriented
-    filter size(2*2=4): height 1 ~ 4, width 1 ~ 4 
-    window size(2*2=4): horizontal 1 ~ 4, vertical 1 ~ 4 
-    weights(16*8=128): digits = 8
-    (1) 正負 (7)[0.50393701, 0.2519685 , 0.12598425, 0.06299213, 0.03149606, 0.01574803, 0.00787402] (16)cell 個數
-    bias(16*8=128): digits = 8
-    (8)[0.50196078, 0.25098039, 0.1254902 , 0.0627451 , 0.03137255, 0.01568627, 0.00784314, 0.00392157] (16)cell 個數
-    -----
-    '輸入層'經 weights & bias & activation(wh 層) 的計算後，稱之為'中間層'。
-    '中間層'透過'比例加權層'加權後，產生 output_size 個輸出層
-    -----
-    channel-oriented
-    weights(input channel * digits): 每個 input channel 對應一個比例參數，再將各個 input channel 加總
-    input channel: 一次 wh-oriented 後最多會有 16 個 channel -> (16*8=128)
-    output channel(2): 1 ~ 4，決定上述輸出有幾組
-
-    # temp = np.random.rand(5, 4, 3)
-    # scale = np.random.rand(5, 1, 1)
-    -----
-    reconstructParam & inputReconstruct: 處理輸入的數據維度和所需大小不同的問題
-    令 n_layer = 4 -> 利用 30 個位數來定義過程中 cell 的大小，每個 cell 需要 12 個位數來定義，下一個偏移 6 位後再取出 12 個。
-    weights、bias、channel: 最多都會需要 128 個位數來定義，利用偏移一半長度來減少所需位數，最多需有 1600 位數。
-    綜合: 30 + 1600 = 1630
-    """
-    # last_channel: 輸入數據深度
-    last_channel = 1
-    input_data = np.random.rand(last_channel, 4, 4)
-
-    # struct_gene: 用於定義'結構'的基因組
-    struct_gene = createGenome(n_gene=12)
-
-    # 激勵函數的代碼
-    activation_code = translateStruct(struct_gene[0: 2])
-
-    # 濾波器大小
-    filter_size = (translateStruct(struct_gene[2: 4]), translateStruct(struct_gene[4: 6]))
-
-    # 滑動窗口個數
-    window_number = (translateStruct(struct_gene[6: 8]), translateStruct(struct_gene[8: 10]))
-
-    # 輸出數據深度
-    output_size = translateStruct(struct_gene[10: 12])
-
-    cell = Cell(digits=8,
-                steps=4,
-                activation_code=activation_code,
-                filter_size=filter_size,
-                window_number=window_number,
-                output_size=output_size)
-
-    # max n_gene = 4 * 4 * 8 * 2 + 4 * 4 * 64 * 4 * 8 = 33024
-    n_gene = (cell.h_filter * cell.w_filter * cell.digits * 2 +
-              cell.h_window * cell.w_window * last_channel * cell.output_size * cell.digits)
-    # n_gene = cell.digits + (cell.h_filter * cell.w_filter * 2 + cell.last_channel * cell.output_size - 1) * cell.steps
-
-    # value_gene: 用於定義'結構當中數值'的基因組
-    value_gene = createGenome(n_gene=n_gene)
-
-    # 根據 value_gene 編譯，設置 cell 當中的數值
-    cell.compile(data=value_gene, last_channel=last_channel)
-
-    # input_data 通過 cell 的運算，獲得 outputs
-    outputs = cell(input_data)
-    print(f"outputs.shape: {outputs.shape}, cell.filter: ({cell.h_filter}, {cell.w_filter}), "
-          f"cell.output_size: {cell.output_size}")
-    print("#Value gene:", cell.digits + (cell.h_filter * cell.w_filter * 2 +
-                                         cell.last_channel * cell.output_size - 1) * cell.steps)

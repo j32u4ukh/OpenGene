@@ -4,6 +4,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 
 # from submodule.Xu3.utils import getLogger
+# TODO: OpenGene 應該要像 PyTorch 那樣，可以給其他人繼承，來達到最基本的機能架構
 
 
 class Evolution(metaclass=ABCMeta):
