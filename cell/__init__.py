@@ -11,29 +11,40 @@ class Cell:
     """
     Cell 如何解讀傳入的基因段，可以根據不同類型的 Cell 有不同的定義。
     """
-    def __init__(self, gene):
+    def __init__(self, gene, n_struct, n_value):
+        """
+
+        :param gene: 傳入的基因段
+        :param n_struct: 定義結構的基因組個數
+        :param n_value: 定義數值的基因組個數
+        """
         self.index = 0
         self.gene = gene
+        self.n_struct = n_struct
+        self.n_value = n_value
 
-    def nextStructGenome(self, n_gene=2):
-        genome = self.gene[self.index: self.index + n_gene]
-        print(f"genome({self.index}, {self.index + n_gene})")
-        self.index += n_gene
+        # TODO: 計算傳入的基因段長度，是否足以建構這個細胞，根據 n_struct 和 n_value 可計算建構此細胞所需基因個數
+        gene_demand = self.n_struct * Gene.struct_digits + (self.n_value - 1) * Gene.value_steps + Gene.value_digits
+        assert len(self.gene) > gene_demand, f"#gene: {len(self.gene)} | gene_demand: {gene_demand}"
 
-        return genome
+    def nextStructGenome(self):
+        for _ in range(self.n_struct):
+            genome = self.gene[self.index: self.index + Gene.struct_digits]
+            print(f"genome({self.index}, {self.index + Gene.struct_digits})")
+            self.index += Gene.struct_digits
+
+            yield genome
 
     def nextValueGenome(self):
         """
-        TODO: 由於一開始不知道需要多少基因，或許可以在建立整個基因序列後，再確立序列的長度，然後再進行演化
 
         :return: 返回長度為 Gene.digits 的基因組
         """
-        n_gene = len(self.gene)
-        start = self.index
+        for _ in range(self.n_value):
+            genome = self.gene[self.index: self.index + Gene.value_digits]
+            print(f"genome({self.index}, {self.index + Gene.value_digits})")
+            self.index += Gene.value_steps
 
-        for self.index in range(start, n_gene, Gene.steps):
-            genome = self.gene[self.index: self.index + Gene.digits]
-            print(f"genome({self.index}, {self.index + Gene.digits})")
             yield genome
 
 
@@ -338,12 +349,11 @@ def reconstructParam(input_size, filter_size, window_size):
 
 
 if __name__ == "__main__":
-    gene = createGene(n_gene=24)
-    cell = Cell(gene)
+    gene = createGene(n_gene=10)
+    cell = Cell(gene, n_struct=2, n_value=3)
 
-    # for _ in range(3):
-    #     genome = cell.nextStructGenome(n_gene=2)
-    #     print(genome)
+    for genome in cell.nextStructGenome():
+        print("nextStructGenome:", genome)
 
     for genome in cell.nextValueGenome():
         print("nextValueGenome:", genome)

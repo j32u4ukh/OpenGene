@@ -8,11 +8,14 @@ class Gene:
     unsign_normalizer = None
 
     # ===== 定義其他共用參數 =====
-    # 基因組長度：以多少的基因來定義一個最小數值
-    digits = 8
+    # 結構基因組長度：以多少的基因來定義一個結構參數
+    struct_digits = 2
+
+    # 數值基因組長度：以多少的基因來定義一個最小數值
+    value_digits = 8
 
     # 間隔幾個基因再取下一個基因組
-    steps = 4
+    value_steps = 4
 
     @classmethod
     def signValue(cls, genome: np.array):
