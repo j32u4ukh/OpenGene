@@ -1,31 +1,68 @@
+import datetime
 import math
 
 import cv2
 import numpy as np
-
+import uuid
 import utils.math as umath
 from gene import Gene, createGene
+from submodule.events import Event
+from submodule.Xu3.utils import getLogger
 
 
 class Cell:
     """
     Cell 如何解讀傳入的基因段，可以根據不同類型的 Cell 有不同的定義。
     """
-    def __init__(self, gene, n_struct, n_value):
+    def __init__(self, gene, n_struct, n_value, logger_dir="cell",
+                 logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
         """
 
         :param gene: 傳入的基因段
         :param n_struct: 定義結構的基因組個數
         :param n_value: 定義數值的基因組個數
         """
+        self.logger_dir = logger_dir
+        self.logger_name = logger_name
+        self.extra = {"className": self.__class__.__name__}
+        self.logger = getLogger(logger_name=self.logger_name,
+                                to_file=True,
+                                time_file=False,
+                                file_dir=self.logger_dir,
+                                instance=True)
+
         self.index = 0
         self.gene = gene
         self.n_struct = n_struct
         self.n_value = n_value
 
-        # TODO: 計算傳入的基因段長度，是否足以建構這個細胞，根據 n_struct 和 n_value 可計算建構此細胞所需基因個數
-        gene_demand = self.n_struct * Gene.struct_digits + (self.n_value - 1) * Gene.value_steps + Gene.value_digits
-        assert len(self.gene) > gene_demand, f"#gene: {len(self.gene)} | gene_demand: {gene_demand}"
+        """在傳入建構子之前就可以檢查基因段長度是否足夠了"""
+        # # 計算傳入的基因段長度，是否足以建構這個細胞，根據 n_struct 和 n_value 可計算建構此細胞所需基因個數
+        # self.event = Event()
+        # self.onConstruct = self.event.onConstruct
+        # gene_demand = self.n_struct * Gene.struct_digits + (self.n_value - 1) * Gene.value_steps + Gene.value_digits
+        #
+        # if len(self.gene) > gene_demand:
+        #     guid = uuid.uuid4().hex
+        # else:
+        #     self.logger.warning(f"#gene: {len(self.gene)} | gene_demand: {gene_demand}", extra=self.extra)
+        #     guid = ""
+        #
+        # # 計算傳入的基因段長度，足夠建構這個細胞，則回傳 guid 作為辨識碼；若不足則回傳空字串，移除該細胞或該生命體無法成立
+        # self.onConstruct(guid)
+
+    @staticmethod
+    def getGeneDemand(n_struct, n_value):
+        """
+        不同類型的細胞，會需要不同的 n_struct 和 n_value
+
+        :param n_struct: 定義結構的基因組個數
+        :param n_value: 定義數值的基因組個數
+        :return:
+        """
+        gene_demand = n_struct * Gene.struct_digits + (n_value - 1) * Gene.value_steps + Gene.value_digits
+
+        return gene_demand
 
     def nextStructGenome(self):
         for _ in range(self.n_struct):
