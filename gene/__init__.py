@@ -4,6 +4,8 @@ from numpy import nonzero
 
 class Gene:
     # TODO: 產生基因後，便可根據結構以及各個細胞所需基因個數，檢查該基因序列是否能夠建構出生命體
+    # TODO: 每個細胞所要求的數據輸入形式有所不同，可以事先檢查
+
     # 利用 classmethod 的形式，避免 normalizer 的重複計算，減少計算量
     sign_normalizer = None
     unsign_normalizer = None

@@ -1,19 +1,22 @@
 import datetime
 import math
+from abc import ABCMeta, abstractmethod
 
 import cv2
 import numpy as np
-import uuid
+
 import utils.math as umath
 from gene import Gene, createGene
-from submodule.events import Event
 from submodule.Xu3.utils import getLogger
 
 
-class Cell:
+class Cell(metaclass=ABCMeta):
     """
     Cell 如何解讀傳入的基因段，可以根據不同類型的 Cell 有不同的定義。
+
+    @abstractmethod -> 定義要子物件實作的函式
     """
+
     def __init__(self, gene, n_struct, n_value, logger_dir="cell",
                  logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
         """
@@ -36,33 +39,22 @@ class Cell:
         self.n_struct = n_struct
         self.n_value = n_value
 
-        """在傳入建構子之前就可以檢查基因段長度是否足夠了"""
-        # # 計算傳入的基因段長度，是否足以建構這個細胞，根據 n_struct 和 n_value 可計算建構此細胞所需基因個數
-        # self.event = Event()
-        # self.onConstruct = self.event.onConstruct
-        # gene_demand = self.n_struct * Gene.struct_digits + (self.n_value - 1) * Gene.value_steps + Gene.value_digits
-        #
-        # if len(self.gene) > gene_demand:
-        #     guid = uuid.uuid4().hex
-        # else:
-        #     self.logger.warning(f"#gene: {len(self.gene)} | gene_demand: {gene_demand}", extra=self.extra)
-        #     guid = ""
-        #
-        # # 計算傳入的基因段長度，足夠建構這個細胞，則回傳 guid 作為辨識碼；若不足則回傳空字串，移除該細胞或該生命體無法成立
-        # self.onConstruct(guid)
-
     @staticmethod
     def getGeneDemand(n_struct, n_value):
         """
-        不同類型的細胞，會需要不同的 n_struct 和 n_value
+        不同類型的細胞，會需要不同的 n_struct 和 n_value。
 
         :param n_struct: 定義結構的基因組個數
         :param n_value: 定義數值的基因組個數
-        :return:
+        :return: 建構這個細胞所需的基因數量
         """
         gene_demand = n_struct * Gene.struct_digits + (n_value - 1) * Gene.value_steps + Gene.value_digits
 
         return gene_demand
+
+    @abstractmethod
+    def call(self, input_data):
+        pass
 
     def nextStructGenome(self):
         for _ in range(self.n_struct):
@@ -85,13 +77,17 @@ class Cell:
             yield genome
 
 
-class CellDemo:
+class DenseCell(Cell):
     activation_dict = {1: umath.origin,
                        2: umath.relu,
                        3: umath.sigmoid,
                        4: umath.absFunc}
 
-    def __init__(self, digits=8, steps=8, activation_code=0, filter_size=(2, 2), window_number=(2, 2), output_size=1):
+    def __init__(self, gene, digits=8, steps=8, activation_code=0, filter_size=(2, 2), window_number=(2, 2),
+                 output_size=1):
+        super().__init__(gene, n_struct=6, n_value=20,
+                         logger_dir="DenseCell", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+
         # 使用幾個數值作為最小定義單位 -> 幾個 0/1 來換算成數值或定義結構
         self.digits = digits
 
@@ -99,7 +95,7 @@ class CellDemo:
         self.steps = steps
 
         # activation(2): 0.origin 1.relu 2.sigmoid 3.abs(取絕對值)
-        self.activate_func = CellDemo.activation_dict[activation_code]
+        self.activate_func = DenseCell.activation_dict[activation_code]
 
         # 濾波器尺寸
         self.h_filter, self.w_filter = filter_size
@@ -122,44 +118,16 @@ class CellDemo:
         #
         self.channels = None
 
-        # 8 位元當中，第 1 位數值用於區分正負，剩下則計算實際數值，用於 weights
-        self.real_number_multiplier = 2 ** np.arange(self.digits - 1)[::-1] / float(2 ** (self.digits - 1) - 1)
-
-        # 8 位元都用於計算實際數值，都是正數，用於 bias
-        self.non_negative_multiplier = 2 ** np.arange(self.digits)[::-1] / float(2 ** self.digits - 1)
-
     def __call__(self, x):
         outputs = call(x, weights=self.weights, bias=self.bias, output_size=self.output_size,
                        last_channel=self.last_channel, channels_array=self.channels,
                        filter_size=(self.h_filter, self.w_filter), window_size=(self.h_window, self.w_window),
                        activate_func=self.activate_func)
 
-        # input_data, (h_stride, w_stride) = inputReconstruct(x,
-        #                                                     filter_shape=(self.h_filter, self.w_filter),
-        #                                                     window=(self.h_window, self.w_window))
-        #
-        # output = []
-        # for h in range(self.h_window):
-        #     for w in range(self.w_window):
-        #         h_index = h * h_stride
-        #         w_index = w * w_stride
-        #         patch = input_data[:, h_index: h_index + self.h_filter, w_index: w_index + self.w_filter]
-        #         result = self.activate_func(patch * self.weights + self.bias)
-        #         result = result.sum(axis=0)
-        #         output.append(result)
-        #
-        # output = np.array(output)
-        # outputs = []
-        #
-        # for out in range(self.output_size):
-        #     channels = self.channels[out]
-        #     channels = channels.reshape((self.last_channel, 1, 1))
-        #     channel = (output * channels).sum(axis=0)
-        #     outputs.append(channel)
-        #
-        # outputs = np.array(outputs)
-
         return outputs
+
+    def call(self, input_data):
+        pass
 
     def compile(self, data, last_channel=16):
         """
@@ -186,11 +154,8 @@ class CellDemo:
             bias_gene = data[i + bias_start_index: i + bias_start_index + self.digits]
             print(f"bias: ({i + bias_start_index}, {i + bias_start_index + self.digits})")
 
-            weights = (weights_gene[1:] * self.real_number_multiplier).sum()
-            bias = (bias_gene * self.non_negative_multiplier).sum()
-
-            if weights_gene[0] == 0:
-                weights *= -1
+            weights = Gene.signValue(weights_gene)
+            bias = Gene.unsignValue(bias_gene)
 
             temp_weights.append(weights)
             temp_bias.append(bias)
@@ -235,8 +200,8 @@ class CellDemo:
                 # 根據 c_start, c_stop 從 data 中取得 channel 加權基因組
                 channel_gene = data[c_start: c_stop]
 
-                # '加權基因組'利用 self.non_negative_multiplier 轉換成數值
-                channel = (channel_gene * self.non_negative_multiplier).sum()
+                # '加權基因組' 轉換成數值
+                channel = Gene.unsignValue(channel_gene)
 
                 # 取得 channel No.c 的加權比例值
                 channels.append(channel)
@@ -317,27 +282,14 @@ def inputReconstruct(input_data, filter_shape=(2, 2), window=(2, 2)):
     win_height, win_width = window
 
     # reconstructParam: 為了'當前 filter & window 所需要的維度'，所需要縮放的比例和 padding 的大小，以及 stride 大小
-    pad_height, resize_height, stride_height = reconstructParam(input_size=height,
-                                                                filter_size=f_height,
-                                                                window_size=win_height)
-    pad_width, resize_width, stride_width = reconstructParam(input_size=width,
-                                                             filter_size=f_width,
-                                                             window_size=win_width)
+    pad_height, stride_height = reconstructParam(input_size=height,
+                                                 filter_size=f_height,
+                                                 n_window=win_height)
+    pad_width, stride_width = reconstructParam(input_size=width,
+                                               filter_size=f_width,
+                                               n_window=win_width)
 
-    if resize_height != height or resize_width != width:
-        result = []
-
-        # 沿著深度，對數據做縮放，再存回 result 當中
-        for data in input_data:
-            # cv2.resize 的 height, width 和一般的順序相反
-            # cv2.resize 返回值是對複製的數據做 resize
-            res = cv2.resize(data, (resize_width, resize_height))
-            result.append(res)
-
-        result = np.array(result)
-    else:
-        # 無須縮放，複製一份 input_data
-        result = input_data.copy()
+    result = input_data.copy()
 
     if pad_height != 0 or pad_width != 0:
         result = np.pad(result, ((0, 0), (pad_height, pad_height), (pad_width, pad_width)), 'constant')
@@ -346,51 +298,45 @@ def inputReconstruct(input_data, filter_shape=(2, 2), window=(2, 2)):
 
 
 # 計算為了'縮放成當前 filter & window 所需要的維度'，所需要縮放的比例和 padding 的大小，以及 stride 大小
-def reconstructParam(input_size, filter_size, window_size):
-    boundary = (filter_size + window_size - 1, filter_size * window_size)
+def reconstructParam(input_size, filter_size, n_window):
+    """
+    根據 input_size，以及 filter_size，決定 strides, padding
 
-    # 根據 input_data 大小，以及 filter 所需要的大小，決定 strides, padding
-    if input_size < boundary[0]:
-        # 原始尺寸
-        resize_size = input_size
+    :param input_size: 輸入數據大小
+    :param filter_size: 濾波器大小
+    :param n_window: 視窗個數
+    :return:
+    """
+    min_require = filter_size + n_window - 1
+
+    if input_size < min_require:
 
         # 填充至最小要求大小
-        pad_size = math.ceil((boundary[0] - input_size) / 2)
+        pad_size = math.ceil((min_require - input_size) / 2)
 
-        stride_size = int((input_size + 2 * pad_size - filter_size) / (window_size - 1))
+        stride_size = math.floor((input_size + 2 * pad_size - filter_size) / (n_window - 1))
 
-    elif boundary[1] < input_size:
-        # 縮放至最大容許大小
-        resize_size = boundary[1]
-
-        # 無填充
-        pad_size = 0
-
-        if window_size == 1:
-            stride_size = 0
-        else:
-            stride_size = filter_size
     else:
-        # 原始尺寸
-        resize_size = input_size
-
         # 無填充
         pad_size = 0
 
-        if window_size == 1:
+        if n_window == 1:
             stride_size = 0
         else:
-            stride_size = (input_size - filter_size) / (window_size - 1)
+            stride_size = math.floor((input_size - filter_size) / (n_window - 1))
 
-    return pad_size, resize_size, math.floor(stride_size)
+    return pad_size, stride_size
 
 
 if __name__ == "__main__":
-    gene = createGene(n_gene=10)
+    gene = createGene(n_gene=24)
     cell = Cell(gene, n_struct=2, n_value=3)
 
-    for genome in cell.nextStructGenome():
-        print("nextStructGenome:", genome)
+    struct_genome = cell.nextStructGenome()
+    print("nextStructGenome:", next(struct_genome))
+    print("nextStructGenome:", next(struct_genome))
 
-    for genome in cell.nextValueGenome():
-        print("nextValueGenome:", genome)
+    value_genome = cell.nextValueGenome()
+    print("nextValueGenome:", next(value_genome))
+    print("nextValueGenome:", next(value_genome))
+    print("nextValueGenome:", next(value_genome))

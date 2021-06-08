@@ -1,6 +1,6 @@
 import numpy as np
 
-from cell import CellDemo, call
+from cell import DenseCell, call
 from gene import createGene, translateStruct
 
 """
@@ -108,12 +108,12 @@ if __name__ == "__main__":
     # 輸出數據深度
     output_size = translateStruct(struct_gene[10: 12])
 
-    cell = CellDemo(digits=8,
-                    steps=4,
-                    activation_code=activation_code,
-                    filter_size=filter_size,
-                    window_number=window_number,
-                    output_size=output_size)
+    cell = DenseCell(digits=8,
+                     steps=4,
+                     activation_code=activation_code,
+                     filter_size=filter_size,
+                     window_number=window_number,
+                     output_size=output_size)
 
     # max n_gene = 4 * 4 * 8 * 2 + 4 * 4 * 64 * 4 * 8 = 33024
     n_gene = (cell.h_filter * cell.w_filter * cell.digits * 2 +
