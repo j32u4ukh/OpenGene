@@ -27,7 +27,7 @@ class CellNet:
 
     def compile(self, last_channel=3):
         for cell in self.cells:
-            cell.compile(data=[], last_channel=last_channel)
+            cell.build(data=[], last_channel=last_channel)
             last_channel = cell.output_size
 
 
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     value_gene = createGene(n_gene=n_gene)
 
     # 根據 value_gene 編譯，設置 cell 當中的數值
-    cell.compile(data=value_gene, last_channel=last_channel)
+    cell.build(data=value_gene, last_channel=last_channel)
 
     # input_data 通過 cell 的運算，獲得 outputs
     outputs = cell(input_data)

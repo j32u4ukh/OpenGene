@@ -68,7 +68,7 @@ def translate(genome, start: int = 0, base: float = 1.0):
     return (genome * multiplier).sum()
 
 
-# 轉譯架構類基因(不同於定義數值的基因)
+# 轉譯架構類基因(不同於定義數值的基因)，最小數值為 1，而不是 0
 def translateStruct(genome: np.array):
     translated = translate(genome, start=0, base=2.0)
 

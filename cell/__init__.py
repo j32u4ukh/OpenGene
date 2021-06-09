@@ -2,11 +2,10 @@ import datetime
 import math
 from abc import ABCMeta, abstractmethod
 
-import cv2
 import numpy as np
 
 import utils.math as umath
-from gene import Gene, createGene
+from gene import Gene, createGene, translateStruct
 from submodule.Xu3.utils import getLogger
 
 
@@ -16,6 +15,11 @@ class Cell(metaclass=ABCMeta):
 
     @abstractmethod -> 定義要子物件實作的函式
     """
+    # 定義結構的基因組個數
+    n_struct = None
+
+    # 定義數值的基因組個數
+    n_value = None
 
     def __init__(self, gene, n_struct, n_value, logger_dir="cell",
                  logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
@@ -36,30 +40,33 @@ class Cell(metaclass=ABCMeta):
 
         self.index = 0
         self.gene = gene
-        self.n_struct = n_struct
-        self.n_value = n_value
 
-    @staticmethod
-    def getGeneDemand(n_struct, n_value):
+        self.__class__.n_struct = n_struct
+        self.__class__.n_value = n_value
+
+    @classmethod
+    def getGeneDemand(cls):
         """
         不同類型的細胞，會需要不同的 n_struct 和 n_value。
 
-        :param n_struct: 定義結構的基因組個數
-        :param n_value: 定義數值的基因組個數
+
         :return: 建構這個細胞所需的基因數量
         """
-        gene_demand = n_struct * Gene.struct_digits + (n_value - 1) * Gene.value_steps + Gene.value_digits
+        gene_demand = cls.n_struct * Gene.struct_digits + (cls.n_value - 1) * Gene.value_steps + Gene.value_digits
 
         return gene_demand
+
+    @abstractmethod
+    def build(self):
+        pass
 
     @abstractmethod
     def call(self, input_data):
         pass
 
     def nextStructGenome(self):
-        for _ in range(self.n_struct):
+        for _ in range(self.__class__.n_struct):
             genome = self.gene[self.index: self.index + Gene.struct_digits]
-            print(f"genome({self.index}, {self.index + Gene.struct_digits})")
             self.index += Gene.struct_digits
 
             yield genome
@@ -69,9 +76,8 @@ class Cell(metaclass=ABCMeta):
 
         :return: 返回長度為 Gene.digits 的基因組
         """
-        for _ in range(self.n_value):
+        for _ in range(self.__class__.n_value):
             genome = self.gene[self.index: self.index + Gene.value_digits]
-            print(f"genome({self.index}, {self.index + Gene.value_digits})")
             self.index += Gene.value_steps
 
             yield genome
@@ -83,28 +89,29 @@ class DenseCell(Cell):
                        3: umath.sigmoid,
                        4: umath.absFunc}
 
-    def __init__(self, gene, digits=8, steps=8, activation_code=0, filter_size=(2, 2), window_number=(2, 2),
-                 output_size=1):
-        super().__init__(gene, n_struct=6, n_value=20,
+    def __init__(self, gene):
+        super().__init__(gene, n_struct=6, n_value=48,
                          logger_dir="DenseCell", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 
-        # 使用幾個數值作為最小定義單位 -> 幾個 0/1 來換算成數值或定義結構
-        self.digits = digits
+        struct_genome = self.nextStructGenome()
 
-        # 間隔幾個數值再取下一組基因組
-        self.steps = steps
-
-        # activation(2): 0.origin 1.relu 2.sigmoid 3.abs(取絕對值)
+        # activation(2): 1.origin 2.relu 3.sigmoid 4.abs(取絕對值)
+        activation_code = translateStruct(next(struct_genome))
         self.activate_func = DenseCell.activation_dict[activation_code]
 
         # 濾波器尺寸
-        self.h_filter, self.w_filter = filter_size
+        self.h_filter = translateStruct(next(struct_genome))
+        self.w_filter = translateStruct(next(struct_genome))
+        self.logger.debug(f"filter: ({self.h_filter}, {self.w_filter})", extra=self.extra)
 
         # 濾波器取樣個數(長/寬)
-        self.h_window, self.w_window = window_number
+        self.h_window = translateStruct(next(struct_genome))
+        self.w_window = translateStruct(next(struct_genome))
+        self.logger.debug(f"window: ({self.h_window}, {self.w_window})", extra=self.extra)
 
         # 輸出個數(n_output)
-        self.output_size = output_size
+        self.output_size = translateStruct(next(struct_genome))
+        self.logger.debug(f"output_size: {self.output_size}", extra=self.extra)
 
         # 權重
         self.weights = None
@@ -112,47 +119,20 @@ class DenseCell(Cell):
         # 偏誤
         self.bias = None
 
-        # 最後一個輸出的深度
-        self.last_channel = None
-
         #
         self.channels = None
 
-    def __call__(self, x):
-        outputs = call(x, weights=self.weights, bias=self.bias, output_size=self.output_size,
-                       last_channel=self.last_channel, channels_array=self.channels,
-                       filter_size=(self.h_filter, self.w_filter), window_size=(self.h_window, self.w_window),
-                       activate_func=self.activate_func)
+        self.build()
 
-        return outputs
+    def build(self):
+        value_genome = self.nextValueGenome()
 
-    def call(self, input_data):
-        pass
-
-    def compile(self, data, last_channel=16):
-        """
-        ex: digits = 8, steps = 4
-        ********
-            ********
-                ********
-
-        :param data:
-        :param last_channel:
-        :return:
-        """
         temp_weights = []
         temp_bias = []
 
-        # 一個 filter 占用的基因個數
-        filter_size = self.digits + (self.h_filter * self.w_filter - 1) * self.steps
-
-        # 若 self.steps = self.digits，則 bias 從索引值 filter_size 開始取值
-        bias_start_index = filter_size - self.digits + self.steps
-
-        for i in range(0, filter_size - self.steps, self.steps):
-            weights_gene = data[i: i + self.digits]
-            bias_gene = data[i + bias_start_index: i + bias_start_index + self.digits]
-            print(f"bias: ({i + bias_start_index}, {i + bias_start_index + self.digits})")
+        for _ in range(self.h_filter * self.w_filter):
+            weights_gene = next(value_genome)
+            bias_gene = next(value_genome)
 
             weights = Gene.signValue(weights_gene)
             bias = Gene.unsignValue(bias_gene)
@@ -166,53 +146,85 @@ class DenseCell(Cell):
         # temp_bias: 數值個數與 self.bias 相同的一維陣列，此處再將它 reshape 為 (self.h_filter, self.w_filter)
         self.bias = np.array(temp_bias).reshape((self.h_filter, self.w_filter))
 
-        # hw 層使用的基因個數
-        weights_bias_size = self.digits + (self.h_filter * self.w_filter * 2 - 1) * self.steps
-
-        # 考慮到 hw 層取值範圍 和 channel 層取值會有重疊的部分
-        # 若 self.step = self.digits，則 channel 從索引值 weights_bias_size 開始取值
-        channel_start_index = weights_bias_size - self.digits + self.steps
-
-        # 前一個 cell 的輸出數(last_channel) 乘上 hw 層的輸出個數，為每個 channel 所需要的數值個數
-
-        # 對於每一層輸入，都會產出 self.h_window * self.w_window 個 hw 層的輸出，
-        # last_channel 層輸入就會有 last_channel * self.h_window * self.w_window = self.last_channel 個 hw 層的輸出
-        self.last_channel = last_channel * self.h_window * self.w_window
-        print(f"self.last_channel = {last_channel} * {self.h_window} * {self.w_window} = {self.last_channel}")
-
-        # 考慮 self.step 的情況下，定義一個 output_channel 所需的位數，當 self.step = self.digits 時，會和不重疊取值時相同
-        # 定義 channel 的一個加權比例值，會需要 out_size 個基因。(每一層輸出有 self.last_channel 個加權比例值)
-        out_size = self.digits + (self.last_channel - 1) * self.steps
-        print(f"out_size: {out_size}, self.output_size: {self.output_size}")
-        output_channels = []
+        channels = []
 
         # self.output_size: 最終輸出層數
-        for out in range(self.output_size):
-            channels = []
+        for _ in range(self.output_size):
+            temp_channels = []
 
-            for c in range(self.last_channel):
-                c_start = channel_start_index + out * out_size + c * self.steps
-
-                # 當 self.step = self.digits 時，會和不重疊取值時相同
-                c_stop = channel_start_index + out * out_size + c * self.steps + self.digits
-                print(f"c_start: {c_start}, c_stop: {c_stop}")
-
-                # 根據 c_start, c_stop 從 data 中取得 channel 加權基因組
-                channel_gene = data[c_start: c_stop]
-
-                # '加權基因組' 轉換成數值
+            for _ in range(self.output_size):
+                channel_gene = next(value_genome)
                 channel = Gene.unsignValue(channel_gene)
+                temp_channels.append(channel)
 
-                # 取得 channel No.c 的加權比例值
-                channels.append(channel)
-
-            channels = np.array(channels)
-
-            # 各 channel 的加權比例值，除以總合，確保比例加總為 1
-            output_channels.append(channels / channels.sum())
+            channels.append(temp_channels)
 
         # self.output_size 組'各 channel 的加權比例值'
-        self.channels = np.array(output_channels).reshape((self.output_size, -1))
+        self.channels = np.array(channels).reshape((self.output_size, self.output_size))
+        # self.channels /= self.channels.sum()
+
+    def call(self, input_data):
+        input_data, (h_stride, w_stride) = inputReconstruct(input_data,
+                                                            filter_shape=(self.h_filter, self.w_filter),
+                                                            window=(self.h_window, self.w_window))
+        output = None
+        shape = input_data.shape
+        ndim = len(shape)
+        n_channel = min(shape[-2], self.output_size)
+
+        for h in range(self.h_window):
+            temp_output = None
+            self.logger.debug(f"h: {h}", extra=self.extra)
+
+            for w in range(self.w_window):
+                self.logger.debug(f"(h, w): ({h}, {w})", extra=self.extra)
+
+                h_index = h * h_stride
+                w_index = w * w_stride
+
+                # 根據 h_index, w_index, h_filter, w_filter 取出要運算的區塊
+                # 之後加權只使用前 n_channel 個 channel，這裡直接取前 n_channel 個，以減少不必要的計算
+                self.logger.debug(f"[{n_channel}, {h_index}: {h_index + self.h_filter}, "
+                                  f"{w_index}: {w_index + self.w_filter}]", extra=self.extra)
+                patch = input_data[:n_channel, h_index: h_index + self.h_filter, w_index: w_index + self.w_filter]
+                self.logger.debug(f"patch.shape: {patch.shape}", extra=self.extra)
+
+                # 運算後結果通過非線性的激勵函數
+                result = self.activate_func(patch * self.weights + self.bias)
+                self.logger.debug(f"result.shape: {result.shape}", extra=self.extra)
+
+                # 根據不同 channel 參數對 result 進行加權
+                out = None
+                for o in range(self.output_size):
+                    self.logger.debug(f"(o, h, w): ({o}, {h}, {w})", extra=self.extra)
+
+                    channels = self.channels[o, :n_channel]
+                    channels /= channels.sum()
+                    channels = channels.reshape((n_channel, 1, 1))
+                    temp = channels * result
+
+                    if out is None:
+                        out = temp
+                    else:
+                        out = np.concatenate((out, temp), axis=ndim - 3)
+
+                    self.logger.debug(f"out.shape: {out.shape}", extra=self.extra)
+
+                if temp_output is None:
+                    temp_output = out
+                else:
+                    temp_output = np.concatenate((temp_output, out), axis=ndim - 1)
+
+                self.logger.debug(f"temp_output.shape: {temp_output.shape}", extra=self.extra)
+
+            if output is None:
+                output = temp_output
+            else:
+                output = np.concatenate((output, temp_output), axis=ndim - 2)
+
+            self.logger.debug(f"output.shape: {output.shape}", extra=self.extra)
+
+        return output
 
 
 def call(x, weights, bias, output_size, last_channel, channels_array: list,
@@ -297,6 +309,7 @@ def inputReconstruct(input_data, filter_shape=(2, 2), window=(2, 2)):
     return result, (stride_height, stride_width)
 
 
+# TODO: 排除 stride_size 可能為負數的情況
 # 計算為了'縮放成當前 filter & window 所需要的維度'，所需要縮放的比例和 padding 的大小，以及 stride 大小
 def reconstructParam(input_size, filter_size, n_window):
     """
@@ -314,29 +327,36 @@ def reconstructParam(input_size, filter_size, n_window):
         # 填充至最小要求大小
         pad_size = math.ceil((min_require - input_size) / 2)
 
-        stride_size = math.floor((input_size + 2 * pad_size - filter_size) / (n_window - 1))
-
     else:
         # 無填充
         pad_size = 0
 
-        if n_window == 1:
-            stride_size = 0
-        else:
-            stride_size = math.floor((input_size - filter_size) / (n_window - 1))
+    if n_window == 1:
+        stride_size = 0
+
+    else:
+        stride_size = math.floor((input_size - filter_size) / (n_window - 1))
 
     return pad_size, stride_size
 
 
 if __name__ == "__main__":
-    gene = createGene(n_gene=24)
-    cell = Cell(gene, n_struct=2, n_value=3)
+    def testCell():
+        gene = createGene(n_gene=24)
+        cell = Cell(gene, n_struct=2, n_value=3)
 
-    struct_genome = cell.nextStructGenome()
-    print("nextStructGenome:", next(struct_genome))
-    print("nextStructGenome:", next(struct_genome))
+        struct_genome = cell.nextStructGenome()
+        print("nextStructGenome:", next(struct_genome))
+        print("nextStructGenome:", next(struct_genome))
 
-    value_genome = cell.nextValueGenome()
-    print("nextValueGenome:", next(value_genome))
-    print("nextValueGenome:", next(value_genome))
-    print("nextValueGenome:", next(value_genome))
+        value_genome = cell.nextValueGenome()
+        print("nextValueGenome:", next(value_genome))
+        print("nextValueGenome:", next(value_genome))
+        print("nextValueGenome:", next(value_genome))
+
+
+    gene = createGene(n_gene=208)
+    dense = DenseCell(gene)
+
+    input_data = np.random.random((1, 3, 4))
+    dense.call(input_data)
