@@ -154,7 +154,10 @@ class DenseCell(Cell):
 
             for _ in range(self.output_size):
                 channel_gene = next(value_genome)
+
+                # 都會是 正值 或是 0
                 channel = Gene.unsignValue(channel_gene)
+
                 temp_channels.append(channel)
 
             channels.append(temp_channels)
@@ -167,10 +170,13 @@ class DenseCell(Cell):
         input_data, (h_stride, w_stride) = inputReconstruct(input_data,
                                                             filter_shape=(self.h_filter, self.w_filter),
                                                             window=(self.h_window, self.w_window))
+        self.logger.debug(f"input_data: {input_data.shape}, stride: ({h_stride}, {w_stride})", extra=self.extra)
+
         output = None
         shape = input_data.shape
         ndim = len(shape)
-        n_channel = min(shape[-2], self.output_size)
+        n_channel = min(shape[-3], self.output_size)
+        self.logger.debug(f"n_channel: {n_channel}", extra=self.extra)
 
         for h in range(self.h_window):
             temp_output = None
@@ -199,7 +205,14 @@ class DenseCell(Cell):
                     self.logger.debug(f"(o, h, w): ({o}, {h}, {w})", extra=self.extra)
 
                     channels = self.channels[o, :n_channel]
-                    channels /= channels.sum()
+                    denominator = channels.sum()
+
+                    if denominator == 0:
+                        val = 1.0 / Gene.getUnsignNormalizer()
+                        channels = np.array([val for _ in range(n_channel)])
+                    else:
+                        channels /= denominator
+
                     channels = channels.reshape((n_channel, 1, 1))
                     temp = channels * result
 
@@ -309,7 +322,6 @@ def inputReconstruct(input_data, filter_shape=(2, 2), window=(2, 2)):
     return result, (stride_height, stride_width)
 
 
-# TODO: 排除 stride_size 可能為負數的情況
 # 計算為了'縮放成當前 filter & window 所需要的維度'，所需要縮放的比例和 padding 的大小，以及 stride 大小
 def reconstructParam(input_size, filter_size, n_window):
     """
@@ -335,7 +347,7 @@ def reconstructParam(input_size, filter_size, n_window):
         stride_size = 0
 
     else:
-        stride_size = math.floor((input_size - filter_size) / (n_window - 1))
+        stride_size = math.floor((input_size + 2 * pad_size - filter_size) / (n_window - 1))
 
     return pad_size, stride_size
 

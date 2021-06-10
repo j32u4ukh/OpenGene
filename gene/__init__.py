@@ -21,6 +21,20 @@ class Gene:
     value_steps = 4
 
     @classmethod
+    def getSignNormalizer(cls):
+        if cls.sign_normalizer is None:
+            cls.sign_normalizer = translate([1.0 for _ in range(len(genome) - 1)], start=0, base=2.0)
+
+        return cls.sign_normalizer
+
+    @classmethod
+    def getUnsignNormalizer(cls):
+        if cls.unsign_normalizer is None:
+            cls.unsign_normalizer = translate([1.0 for _ in range(len(genome))], start=0, base=2.0)
+
+        return cls.unsign_normalizer
+
+    @classmethod
     def signValue(cls, genome: np.array):
         if cls.sign_normalizer is None:
             cls.sign_normalizer = translate([1.0 for _ in range(len(genome) - 1)], start=0, base=2.0)
