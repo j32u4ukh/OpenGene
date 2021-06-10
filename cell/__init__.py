@@ -164,18 +164,16 @@ class DenseCell(Cell):
 
         # self.output_size 組'各 channel 的加權比例值'
         self.channels = np.array(channels).reshape((self.output_size, self.output_size))
-        # self.channels /= self.channels.sum()
 
     def call(self, input_data):
-        input_data, (h_stride, w_stride) = inputReconstruct(input_data,
-                                                            filter_shape=(self.h_filter, self.w_filter),
-                                                            window=(self.h_window, self.w_window))
+        input_data, (h_stride, w_stride) = self.inputReconstruct(input_data)
         self.logger.debug(f"input_data: {input_data.shape}, stride: ({h_stride}, {w_stride})", extra=self.extra)
 
         output = None
         shape = input_data.shape
         ndim = len(shape)
         n_channel = min(shape[-3], self.output_size)
+        c_axis, h_axis, w_axis = ndim - 3, ndim - 2, ndim - 1
         self.logger.debug(f"n_channel: {n_channel}", extra=self.extra)
 
         for h in range(self.h_window):
@@ -208,36 +206,89 @@ class DenseCell(Cell):
                     denominator = channels.sum()
 
                     if denominator == 0:
+                        # 加總數值是 0，只在原始 channels 數值都為 0 才有可能，
+                        # 但也表示這些 channel 權重雖然都相同但數值應該要很低，之後不同 n_channel 取值時不會佔太高的權重
                         val = 1.0 / Gene.getUnsignNormalizer()
-                        channels = np.array([val for _ in range(n_channel)])
-                    else:
-                        channels /= denominator
+                        self.channels[o, :n_channel] = np.array([val for _ in range(n_channel)])
+                        denominator = self.channels[o, :n_channel].sum()
 
+                    channels /= denominator
                     channels = channels.reshape((n_channel, 1, 1))
-                    temp = channels * result
+                    temp = (channels * result).sum(axis=c_axis)
+                    temp = temp.reshape((1, self.h_filter, self.w_filter))
+                    self.logger.debug(f"temp.shape: {temp.shape}", extra=self.extra)
 
                     if out is None:
                         out = temp
                     else:
-                        out = np.concatenate((out, temp), axis=ndim - 3)
+                        out = np.concatenate((out, temp), axis=c_axis)
 
                     self.logger.debug(f"out.shape: {out.shape}", extra=self.extra)
 
                 if temp_output is None:
                     temp_output = out
                 else:
-                    temp_output = np.concatenate((temp_output, out), axis=ndim - 1)
+                    temp_output = np.concatenate((temp_output, out), axis=w_axis)
 
                 self.logger.debug(f"temp_output.shape: {temp_output.shape}", extra=self.extra)
 
             if output is None:
                 output = temp_output
             else:
-                output = np.concatenate((output, temp_output), axis=ndim - 2)
+                output = np.concatenate((output, temp_output), axis=h_axis)
 
             self.logger.debug(f"output.shape: {output.shape}", extra=self.extra)
 
         return output
+
+    # 將 input_data 縮放成當前 filter & window 所需要的維度
+    def inputReconstruct(self, input_data):
+        _, height, width = input_data.shape
+
+        # reconstructParam: 為了'當前 filter & window 所需要的維度'，所需要縮放的比例和 padding 的大小，以及 stride 大小
+        pad_height, stride_height = self.reconstructParam(input_size=height,
+                                                          filter_size=self.h_filter,
+                                                          n_window=self.h_window)
+        pad_width, stride_width = self.reconstructParam(input_size=width,
+                                                        filter_size=self.w_filter,
+                                                        n_window=self.w_window)
+
+        result = input_data.copy()
+
+        if pad_height != 0 or pad_width != 0:
+            result = np.pad(result, ((0, 0), (pad_height, pad_height), (pad_width, pad_width)), 'constant')
+
+        return result, (stride_height, stride_width)
+
+    # 計算為了'縮放成當前 filter & window 所需要的維度'，所需要縮放的比例和 padding 的大小，以及 stride 大小
+    @staticmethod
+    def reconstructParam(input_size, filter_size, n_window):
+        """
+        根據 input_size，以及 filter_size，決定 strides, padding
+
+        :param input_size: 輸入數據大小
+        :param filter_size: 濾波器大小
+        :param n_window: 視窗個數
+        :return:
+        """
+        min_require = filter_size + n_window - 1
+
+        if input_size < min_require:
+
+            # 填充至最小要求大小
+            pad_size = math.ceil((min_require - input_size) / 2)
+
+        else:
+            # 無填充
+            pad_size = 0
+
+        if n_window == 1:
+            stride_size = 0
+
+        else:
+            stride_size = math.floor((input_size + 2 * pad_size - filter_size) / (n_window - 1))
+
+        return pad_size, stride_size
 
 
 def call(x, weights, bias, output_size, last_channel, channels_array: list,
@@ -366,9 +417,19 @@ if __name__ == "__main__":
         print("nextValueGenome:", next(value_genome))
         print("nextValueGenome:", next(value_genome))
 
+    def testDenseCell():
+        gene1 = createGene(n_gene=208)
+        dense1 = DenseCell(gene1)
 
-    gene = createGene(n_gene=208)
-    dense = DenseCell(gene)
+        gene2 = createGene(n_gene=208)
+        dense2 = DenseCell(gene2)
 
-    input_data = np.random.random((1, 3, 4))
-    dense.call(input_data)
+        input_data = np.random.random((1, 3, 4))
+        output1 = dense1.call(input_data)
+        print(f"output1: {output1.shape}")
+
+        output2 = dense2.call(output1)
+        print(f"output2: {output2.shape}")
+
+
+    testDenseCell()
