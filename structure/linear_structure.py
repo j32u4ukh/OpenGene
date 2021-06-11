@@ -9,8 +9,38 @@ class LinearStructure(Structure):
     def __init__(self):
         super().__init__(cells=[])
 
+    # TODO: 擴充 ListNode 定義，使其可以包含 Cell 來進行細胞的串接與呼叫
     def parseStructure(self, matrix):
-        pass
+        nodes = []
+        rows = len(matrix)
+
+        # 根據結構矩陣，產生 ListNode
+        for row in range(rows):
+            try:
+                idx = np.where(matrix[row] == 1.0)[0][0]
+            except IndexError:
+                continue
+
+            list_node = ListNode(row)
+            list_node.add(idx)
+
+            nodes.append(list_node)
+
+        # 檢查 ListNode 的頭尾連結關係
+        ln1, ln2 = ListNode.checkLinkable(nodes)
+        is_linkable = (ln1 is not None) and (ln2 is not None)
+
+        while is_linkable:
+            # 將 nodes[ln2] 加到 nodes[ln1] 之後，並將 nodes[ln2] 移除
+            nodes[ln1] += nodes[ln2]
+            del nodes[ln2]
+
+            # 檢查 ListNode 的頭尾連結關係
+            ln1, ln2 = ListNode.checkLinkable(nodes)
+            is_linkable = (ln1 is not None) and (ln2 is not None)
+
+        # 由於為"直線型串接"，理論上只會有一個 ListNode 才對
+        return nodes[0]
 
     def add(self, cell: Cell):
         self.cells.append(cell)
@@ -22,11 +52,13 @@ class LinearStructure(Structure):
         return x
 
 
+# TODO: ListNode 目前扮演的角色似乎才是 LinearStructure 該做的事情?
 class ListNode:
     def __init__(self, val, root=None):
         self.root = root
         self.val = val
         self.next_node = None
+        self.cell = None
 
     def __add__(self, other):
         self.lastNode().root.next_node = other
@@ -47,6 +79,7 @@ class ListNode:
 
     __repr__ = __str__
 
+    # 檢查多個 ListNode 之間是否有頭尾連結關係
     @staticmethod
     def checkLinkable(nodes):
         n_node = len(nodes)
@@ -75,6 +108,9 @@ class ListNode:
 
     def lastValue(self):
         return self.lastNode().val
+
+    def setCell(self, cell):
+        self.cell = cell
 
 
 # 產生"線性的"結構定義矩陣
@@ -133,44 +169,46 @@ if __name__ == "__main__":
         for node in nodes:
             print(node)
 
-    # ls = LinearStructure()
+    def testParseStructure():
+        from sys import getsizeof
 
-    # parseStructure
-    nodes = []
-    matrix = createLinearStructure(n_cell=10)
-    print(matrix)
+        nodes = []
+        matrix = createLinearStructure(n_cell=10)
+        print(matrix)
+        print(f"size of matrix:", getsizeof(matrix))
 
-    rows = len(matrix)
-    for row in range(rows):
-        try:
-            idx = np.where(matrix[row] == 1.0)[0][0]
-        except IndexError:
-            continue
+        rows = len(matrix)
+        for row in range(rows):
+            try:
+                idx = np.where(matrix[row] == 1.0)[0][0]
+            except IndexError:
+                continue
 
-        list_node = ListNode(row)
-        list_node.add(idx)
+            list_node = ListNode(row)
+            list_node.add(idx)
 
-        nodes.append(list_node)
+            nodes.append(list_node)
 
-    for i, node in enumerate(nodes):
-        print(i)
-        print(node)
+        for i, node in enumerate(nodes):
+            print(i, node)
 
-    print("==================================================")
-
-    ln1, ln2 = ListNode.checkLinkable(nodes)
-
-    is_linkable = (ln1 is not None) and (ln2 is not None)
-
-    while is_linkable:
-        nodes[ln1] += nodes[ln2]
-        del nodes[ln2]
+        print("==================================================")
 
         ln1, ln2 = ListNode.checkLinkable(nodes)
-        print(f"ln1: {ln1}, ln2: {ln2}")
 
         is_linkable = (ln1 is not None) and (ln2 is not None)
 
-    for i, node in enumerate(nodes):
-        print(i)
-        print(node)
+        while is_linkable:
+            nodes[ln1] += nodes[ln2]
+            del nodes[ln2]
+
+            ln1, ln2 = ListNode.checkLinkable(nodes)
+            is_linkable = (ln1 is not None) and (ln2 is not None)
+
+        for i, node in enumerate(nodes):
+            print(i, node)
+
+        print(f"size of ListNode:", getsizeof(nodes[0]))
+
+
+    testParseStructure()
