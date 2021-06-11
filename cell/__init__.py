@@ -241,6 +241,8 @@ class DenseCell(Cell):
 
         return output
 
+    """"""
+
     # 將 input_data 縮放成當前 filter & window 所需要的維度
     def inputReconstruct(self, input_data):
         _, height, width = input_data.shape
