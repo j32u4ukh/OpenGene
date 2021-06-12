@@ -8,9 +8,8 @@ from abc import ABCMeta, abstractmethod
 
 
 class Structure(metaclass=ABCMeta):
-    def __init__(self, cells):
-        # cells 根據是"直線型"還是"網狀結構"，將傳入 list 和 graph，因此這裡不標註變數類型
-        self.cells = cells
+    def __init__(self):
+        pass
 
     @abstractmethod
     def parseStructure(self, matrix):

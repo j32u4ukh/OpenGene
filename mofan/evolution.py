@@ -57,7 +57,6 @@ class Evolution(metaclass=ABCMeta):
     def setPotential(self, potential=5):
         """
         適應度無法再提升的情況下，應再嘗試演化幾輪的定義。
-
         :param potential: 演化幾輪
         :return:
         """
@@ -68,7 +67,6 @@ class Evolution(metaclass=ABCMeta):
         """
         之前在適應度無法再提升的情況下，隨著嘗試演化數輪，適應度再次提升，因此須將嘗試次數還原，
         以便下次出現適應度無法再提升的情況時，可以再次使用。
-
         :return:
         """
         self.potential = self.POTENTIAL
@@ -108,7 +106,6 @@ class Evolution(metaclass=ABCMeta):
         """
         定義哪些基因組來進行繁殖，以及每次繁殖多少子代。
         定義如何重組基因組來源們和自身的基因。
-
         :return: 子代
         """
         pass
@@ -139,7 +136,6 @@ class Evolution(metaclass=ABCMeta):
     def naturalSelection(self, *args, **kwargs):
         """
         定義淘汰機制。
-
         :param args:
         :param kwargs:
         :return:
@@ -200,7 +196,6 @@ class FragmentEvolution(Evolution):
         """
         定義哪些基因組來進行繁殖，以及每次繁殖多少子代。
         定義如何重組基因組來源們和自身的基因。
-
         :return: 子代
         """
         pass
@@ -221,7 +216,6 @@ class FragmentEvolution(Evolution):
     def naturalSelection(self, *args, **kwargs):
         """
         定義淘汰機制。
-
         :param args:
         :param kwargs:
         :return:

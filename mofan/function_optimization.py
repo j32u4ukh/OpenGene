@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from evolution import FragmentEvolution
+from mofan.evolution import FragmentEvolution
 
 
 def func(x):
@@ -138,7 +138,7 @@ class SimpleExchangeDemo(FragmentEvolution):
         """
         self.population = self.population[-self.N_POPULATION:]
         self.updatePopulationSize(n_population=len(self.population))
-        self.logger.debug(f"n_population: {self.n_population}")
+        # self.logger.debug(f"n_population: {self.n_population}")
 
 
 class WinnerLoserDemo(FragmentEvolution):
@@ -222,7 +222,7 @@ class WinnerLoserDemo(FragmentEvolution):
 
         # 加入族群中
         self.addOffspring(offspring=children)
-        self.logger.debug(f"#population: {self.n_population}")
+        # self.logger.debug(f"#population: {self.n_population}")
 
     def geneExchange(self, *args, **kwargs):
         children = kwargs["loser"].copy()
@@ -261,7 +261,7 @@ class WinnerLoserDemo(FragmentEvolution):
     def naturalSelection(self, *args, **kwargs):
         self.population = self.population[-self.N_POPULATION:]
         self.updatePopulationSize(n_population=len(self.population))
-        self.logger.debug(f"n_population: {self.n_population}")
+        # self.logger.debug(f"n_population: {self.n_population}")
 
 
 class DistributionDemo(FragmentEvolution):
@@ -310,7 +310,7 @@ class DistributionDemo(FragmentEvolution):
         # 淘汰超出值域範圍的基因組
         self.population = self.population[valid_idx]
         self.updatePopulationSize(n_population=len(self.population))
-        self.logger.info(f"#population: {self.n_population}")
+        # self.logger.info(f"#population: {self.n_population}")
 
         # 計算適應度
         fitness = func(self.translation())
@@ -352,7 +352,7 @@ class DistributionDemo(FragmentEvolution):
             # 加入族群中
             self.addOffspring(offspring=children)
             self.updatePopulationSize(n_population=len(self.population))
-            self.logger.info(f"#population: {self.n_population}")
+            # self.logger.info(f"#population: {self.n_population}")
 
     def geneExchange(self, *args, **kwargs):
         children = kwargs["loser"].copy()
@@ -368,7 +368,7 @@ class DistributionDemo(FragmentEvolution):
     def mutate(self, *args, **kwargs):
         mu = self.getMu(population=kwargs["children"])
         std = self.getStd(population=kwargs["children"])
-        self.logger.debug(f"mu.shape: {mu.shape}, std.shape: {std.shape}")
+        # self.logger.debug(f"mu.shape: {mu.shape}, std.shape: {std.shape}")
 
         # 以原始 mu 為平均數，標準差為 std 的常態分配重新抽樣
         mu = np.random.normal(loc=mu, scale=std)
@@ -473,7 +473,7 @@ class MutationStrengthDistributionDemo(FragmentEvolution):
         # 淘汰超出值域範圍的基因組
         self.population = self.population[valid_idx]
         self.updatePopulationSize(n_population=len(self.population))
-        self.logger.info(f"#population: {self.n_population}")
+        # self.logger.info(f"#population: {self.n_population}")
 
         # 計算適應度
         fitness = func(self.translation())
@@ -515,11 +515,11 @@ class MutationStrengthDistributionDemo(FragmentEvolution):
             # 加入族群中
             self.addOffspring(offspring=children)
             self.updatePopulationSize(n_population=len(self.population))
-            self.logger.info(f"#population: {self.n_population}")
+            # self.logger.info(f"#population: {self.n_population}")
 
     def geneExchange(self, *args, **kwargs):
         children = kwargs["loser"].copy()
-        self.logger.debug(f"children.shape: {children.shape}")
+        # self.logger.debug(f"children.shape: {children.shape}")
         n_children, n_dna = children.shape
 
         # mu 和相對應的 std 一起進行交換
@@ -532,7 +532,7 @@ class MutationStrengthDistributionDemo(FragmentEvolution):
     def mutate(self, *args, **kwargs):
         mu = self.getMu(population=kwargs["children"])
         std = self.getStd(population=kwargs["children"])
-        self.logger.debug(f"mu.shape: {mu.shape}, std.shape: {std.shape}")
+        # self.logger.debug(f"mu.shape: {mu.shape}, std.shape: {std.shape}")
 
         # 以原始 mu 為平均數，標準差為 std 的常態分配重新抽樣
         mu = np.random.normal(loc=mu, scale=std)

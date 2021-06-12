@@ -293,118 +293,6 @@ class DenseCell(Cell):
         return pad_size, stride_size
 
 
-def call(x, weights, bias, output_size, last_channel, channels_array: list,
-         filter_size=(2, 2), window_size=(2, 2), activate_func=umath.origin):
-    """
-
-    :param x:
-    :param weights:
-    :param bias:
-    :param output_size:
-    :param last_channel:
-    :param channels_array: 用於加權中間層(weight-bias層的輸出)的加權比例值
-    :param filter_size:
-    :param window_size:
-    :param activate_func:
-    :return:
-    """
-    h_filter, w_filter = filter_size
-    h_window, w_window = window_size
-
-    input_data, (h_stride, w_stride) = inputReconstruct(x,
-                                                        filter_shape=(h_filter, w_filter),
-                                                        window=(h_window, w_window))
-    output = []
-
-    for h in range(h_window):
-        for w in range(w_window):
-            h_index = h * h_stride
-            w_index = w * w_stride
-
-            # 根據 h_index, w_index, h_filter, w_filter 取出要運算的區塊
-            patch = input_data[:, h_index: h_index + h_filter, w_index: w_index + w_filter]
-
-            # 運算後結果通過非線性的激勵函數
-            result = activate_func(patch * weights + bias)
-
-            # 區塊運算結果加總
-            result = result.sum(axis=0)
-            print(f"[call] result.shape: {result.shape}")
-
-            # 運算加總結果加入 output
-            output.append(result)
-
-    output = np.array(output)
-    print(f"[call] output.shape: {output.shape}")
-    outputs = []
-
-    print(f"[call] output_size: {output_size}, #channels_array: {len(channels_array)}")
-    for out in range(output_size):
-        # (#channels) = last_channel
-        channels = channels_array[out]
-
-        # 各深度的加權比例
-        channels = channels.reshape((last_channel, 1, 1))
-        channel = (output * channels).sum(axis=0)
-        outputs.append(channel)
-
-    outputs = np.array(outputs)
-
-    return outputs
-
-
-# 將 input_data 縮放成當前 filter & window 所需要的維度
-def inputReconstruct(input_data, filter_shape=(2, 2), window=(2, 2)):
-    input_dim, height, width = input_data.shape
-    f_height, f_width = filter_shape
-    win_height, win_width = window
-
-    # reconstructParam: 為了'當前 filter & window 所需要的維度'，所需要縮放的比例和 padding 的大小，以及 stride 大小
-    pad_height, stride_height = reconstructParam(input_size=height,
-                                                 filter_size=f_height,
-                                                 n_window=win_height)
-    pad_width, stride_width = reconstructParam(input_size=width,
-                                               filter_size=f_width,
-                                               n_window=win_width)
-
-    result = input_data.copy()
-
-    if pad_height != 0 or pad_width != 0:
-        result = np.pad(result, ((0, 0), (pad_height, pad_height), (pad_width, pad_width)), 'constant')
-
-    return result, (stride_height, stride_width)
-
-
-# 計算為了'縮放成當前 filter & window 所需要的維度'，所需要縮放的比例和 padding 的大小，以及 stride 大小
-def reconstructParam(input_size, filter_size, n_window):
-    """
-    根據 input_size，以及 filter_size，決定 strides, padding
-
-    :param input_size: 輸入數據大小
-    :param filter_size: 濾波器大小
-    :param n_window: 視窗個數
-    :return:
-    """
-    min_require = filter_size + n_window - 1
-
-    if input_size < min_require:
-
-        # 填充至最小要求大小
-        pad_size = math.ceil((min_require - input_size) / 2)
-
-    else:
-        # 無填充
-        pad_size = 0
-
-    if n_window == 1:
-        stride_size = 0
-
-    else:
-        stride_size = math.floor((input_size + 2 * pad_size - filter_size) / (n_window - 1))
-
-    return pad_size, stride_size
-
-
 if __name__ == "__main__":
     def testCell():
         gene = createGene(n_gene=24)
@@ -418,6 +306,7 @@ if __name__ == "__main__":
         print("nextValueGenome:", next(value_genome))
         print("nextValueGenome:", next(value_genome))
         print("nextValueGenome:", next(value_genome))
+
 
     def testDenseCell():
         gene1 = createGene(n_gene=208)
@@ -434,4 +323,5 @@ if __name__ == "__main__":
         print(f"output2: {output2.shape}")
 
 
+    # testCell()
     testDenseCell()

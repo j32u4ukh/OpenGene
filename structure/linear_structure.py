@@ -1,64 +1,51 @@
 import numpy as np
 
-from cell import Cell
 from structure import Structure
 
 
 # 直線型串接的基因組
 class LinearStructure(Structure):
     def __init__(self):
-        super().__init__(cells=[])
+        super().__init__()
 
-    # TODO: 擴充 ListNode 定義，使其可以包含 Cell 來進行細胞的串接與呼叫
     def parseStructure(self, matrix):
-        nodes = []
+        cells = []
         rows = len(matrix)
 
-        # 根據結構矩陣，產生 ListNode
+        # 根據結構矩陣，產生 ListCell
         for row in range(rows):
             try:
                 idx = np.where(matrix[row] == 1.0)[0][0]
             except IndexError:
                 continue
 
-            list_node = ListNode(row)
-            list_node.add(idx)
+            list_cell = ListNode(row)
+            list_cell.add(idx)
 
-            nodes.append(list_node)
+            cells.append(list_cell)
 
         # 檢查 ListNode 的頭尾連結關係
-        ln1, ln2 = ListNode.checkLinkable(nodes)
+        ln1, ln2 = ListNode.checkLinkable(cells)
         is_linkable = (ln1 is not None) and (ln2 is not None)
 
         while is_linkable:
             # 將 nodes[ln2] 加到 nodes[ln1] 之後，並將 nodes[ln2] 移除
-            nodes[ln1] += nodes[ln2]
-            del nodes[ln2]
+            cells[ln1] += cells[ln2]
+            del cells[ln2]
 
             # 檢查 ListNode 的頭尾連結關係
-            ln1, ln2 = ListNode.checkLinkable(nodes)
+            ln1, ln2 = ListNode.checkLinkable(cells)
             is_linkable = (ln1 is not None) and (ln2 is not None)
 
         # 由於為"直線型串接"，理論上只會有一個 ListNode 才對
-        return nodes[0]
-
-    def add(self, cell: Cell):
-        self.cells.append(cell)
-
-    def run(self, x):
-        for cell in self.cells:
-            x = cell.call(x)
-
-        return x
+        return cells[0]
 
 
-# TODO: ListNode 目前扮演的角色似乎才是 LinearStructure 該做的事情?
 class ListNode:
-    def __init__(self, val, root=None):
+    def __init__(self, node_id, root=None):
         self.root = root
-        self.val = val
+        self.node_id = node_id
         self.next_node = None
-        self.cell = None
 
     def __add__(self, other):
         self.lastNode().root.next_node = other
@@ -66,11 +53,11 @@ class ListNode:
         return self
 
     def __str__(self):
-        info = f"ListNode({self.val}"
+        info = f"ListNode({self.node_id}"
         next_node = self.next_node
 
         while next_node is not None:
-            info += f" -> {next_node.val}"
+            info += f" -> {next_node.node_id}"
             next_node = next_node.next_node
 
         info += ")"
@@ -89,16 +76,16 @@ class ListNode:
                 if i == j:
                     continue
 
-                if nodes[i].lastValue() == nodes[j].val:
+                if nodes[i].lastNodeId() == nodes[j].node_id:
                     return i, j
 
         return None, None
 
-    def add(self, next_val):
+    def add(self, next_id):
         if self.next_node is None:
-            self.next_node = ListNode(next_val, root=self)
+            self.next_node = ListNode(next_id, root=self)
         else:
-            self.next_node.add(next_val)
+            self.next_node.add(next_id)
 
     def lastNode(self):
         if self.next_node is not None:
@@ -106,11 +93,8 @@ class ListNode:
         else:
             return self
 
-    def lastValue(self):
-        return self.lastNode().val
-
-    def setCell(self, cell):
-        self.cell = cell
+    def lastNodeId(self):
+        return self.lastNode().node_id
 
 
 # 產生"線性的"結構定義矩陣
@@ -137,34 +121,34 @@ if __name__ == "__main__":
         list_node1.add(2)
         list_node1.add(3)
         print(list_node1)
-        print("tail1:", list_node1.lastValue())
+        print("tail1:", list_node1.lastNodeId())
 
         list_node2 = ListNode(3)
         list_node2.add(4)
         list_node2.add(5)
         print(list_node2)
-        print("tail2:", list_node2.lastValue())
+        print("tail2:", list_node2.lastNodeId())
 
         list_node3 = ListNode(4)
         list_node3.add(5)
         list_node3.add(6)
         print(list_node3)
-        print("tail3:", list_node3.lastValue())
+        print("tail3:", list_node3.lastNodeId())
 
         nodes = [list_node2, list_node1, list_node3]
-        ln1, ln2 = ListNode.checkLinkable(nodes)
-        print(f"ln1: {ln1}, ln2: {ln2}")
+        lc1, lc2 = ListNode.checkLinkable(nodes)
+        print(f"lc1: {lc1}, lc2: {lc2}")
 
-        is_linkable = (ln1 is not None) and (ln2 is not None)
+        is_linkable = (lc1 is not None) and (lc2 is not None)
 
         while is_linkable:
-            nodes[ln1] += nodes[ln2]
-            del nodes[ln2]
+            nodes[lc1] += nodes[lc2]
+            del nodes[lc2]
 
-            ln1, ln2 = ListNode.checkLinkable(nodes)
-            print(f"ln1: {ln1}, ln2: {ln2}")
+            lc1, lc2 = ListNode.checkLinkable(nodes)
+            print(f"lc1: {lc1}, lc2: {lc2}")
 
-            is_linkable = (ln1 is not None) and (ln2 is not None)
+            is_linkable = (lc1 is not None) and (lc2 is not None)
 
         for node in nodes:
             print(node)
@@ -172,7 +156,7 @@ if __name__ == "__main__":
     def testParseStructure():
         from sys import getsizeof
 
-        nodes = []
+        cells = []
         matrix = createLinearStructure(n_cell=10)
         print(matrix)
         print(f"size of matrix:", getsizeof(matrix))
@@ -184,31 +168,32 @@ if __name__ == "__main__":
             except IndexError:
                 continue
 
-            list_node = ListNode(row)
-            list_node.add(idx)
+            list_cell = ListNode(row)
+            list_cell.add(idx)
 
-            nodes.append(list_node)
+            cells.append(list_cell)
 
-        for i, node in enumerate(nodes):
-            print(i, node)
+        for i, cell in enumerate(cells):
+            print(i, cell)
 
         print("==================================================")
 
-        ln1, ln2 = ListNode.checkLinkable(nodes)
+        lc1, lc2 = ListNode.checkLinkable(cells)
 
-        is_linkable = (ln1 is not None) and (ln2 is not None)
+        is_linkable = (lc1 is not None) and (lc2 is not None)
 
         while is_linkable:
-            nodes[ln1] += nodes[ln2]
-            del nodes[ln2]
+            cells[lc1] += cells[lc2]
+            del cells[lc2]
 
-            ln1, ln2 = ListNode.checkLinkable(nodes)
-            is_linkable = (ln1 is not None) and (ln2 is not None)
+            lc1, lc2 = ListNode.checkLinkable(cells)
+            is_linkable = (lc1 is not None) and (lc2 is not None)
 
-        for i, node in enumerate(nodes):
-            print(i, node)
+        for i, cell in enumerate(cells):
+            print(i, cell)
 
-        print(f"size of ListNode:", getsizeof(nodes[0]))
+        print(f"size of ListCell:", getsizeof(cells[0]))
 
 
+    # testListNode()
     testParseStructure()
