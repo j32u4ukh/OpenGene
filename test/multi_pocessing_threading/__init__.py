@@ -15,12 +15,11 @@ from submodule.Xu3.utils import getLogger
 
 
 def main(urls, num):
-    d = {"className": "Multi-processing and Multi-threading"}
+    d = {"className": "MPT"}
     logger = getLogger(logger_name=datetime.now().strftime("%Y-%m-%d %H-%M-%S"),
-                       logger_level=logging.DEBUG,
                        to_file=True,
                        time_file=False,
-                       file_dir="test",
+                       file_dir="mpt",
                        instance=True)
 
     logger.debug(f'開始執行({num})', extra=d)

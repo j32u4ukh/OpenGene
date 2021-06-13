@@ -18,7 +18,7 @@ def threadingFunc(dictionary: dict):
 
     for i in array:
         queue.put(i)
-        share_memory.addOhlc(i)
+        share_memory.append(i)
         print(f"{process_idx}-{thread_idx} | {share_memory}")
         time.sleep(1)
 

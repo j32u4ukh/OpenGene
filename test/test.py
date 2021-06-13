@@ -1,57 +1,67 @@
-import numpy as np
+import multiprocessing as mp
+import threading
+import time
 
-# container = None
-#
-# for i in range(2):
-#     temp_container = None
-#
-#     for j in range(2):
-#         k = 2 * i + j
-#         m = np.arange(12 * k, 12 * k + 12).reshape(3, 4)
-#
-#         print(f"m({k}):\n", m)
-#
-#         if temp_container is None:
-#             temp_container = m
-#         else:
-#             temp_container = np.hstack((temp_container, m))
-#
-#         print(f"temp_container:\n", temp_container)
-#
-#     if container is None:
-#         container = temp_container
-#     else:
-#         container = np.vstack((container, temp_container))
-#
-#     print(f"container:\n", container)
 
-container = None
+def threadingFunc(dictionary: dict, process_id=0, thread_id=0):
+    value = dictionary["value"]
+    result = 0
 
-for i in range(2):
-    temp_container = None
+    for i in range(10):
+        result += value
+        print(f"{process_id}-{thread_id} | {result}")
+        time.sleep(0.01)
 
-    for j in range(2):
-        k = 2 * i + j
-        m = np.arange(12 * k, 12 * k + 12).reshape((2, 3, 2))
 
-        print(f"m({k}):\n", m)
+def processThreading(dictionary: dict, process_id=0):
+    params = dictionary["params"]
 
-        if temp_container is None:
-            temp_container = m
-        else:
-            temp_container = np.concatenate((temp_container, m), axis=2)
+    # 定義線程
+    thread_list = []
 
-        print(f"temp_container:\n", temp_container)
+    for thread_id in range(3):
+        print(f"process_id: {process_id}, thread_id: {thread_id}")
+        thread = threading.Thread(target=threadingFunc, args=(dict(value=params[thread_id]["value"]),
+                                                              process_id,
+                                                              thread_id))
+        thread_list.append(thread)
 
-    if container is None:
-        container = temp_container
-    else:
-        container = np.concatenate((container, temp_container), axis=1)
+    # 開始工作
+    for t in thread_list:
+        t.start()
 
-    print(f"container:\n", container)
+    for t in thread_list:
+        t.join()
 
-weights = np.random.random((2, 1, 1))
-print("weights:\n", weights)
 
-weight_container = weights * container
-print("weight_container:\n", weight_container)
+def run():
+    dictionary = {}
+    n_process = 3
+    n_threading = 3
+
+    for p in range(n_process):
+        dictionary[p] = {}
+
+        for t in range(n_threading):
+            dictionary[p][t] = {"value": p + t + 1}
+
+    print(dictionary)
+    p_list = []
+
+    for process_id in range(n_process):
+        p = mp.Process(target=processThreading, args=(dict(params=dictionary[process_id]), process_id))
+        p_list.append(p)
+
+    # 開始工作
+    for p in p_list:
+        p.start()
+
+    # 等待所有Process執行結束
+    for p in p_list:
+        p.join()
+
+    print("All Done.")
+
+
+if __name__ == "__main__":
+    run()
