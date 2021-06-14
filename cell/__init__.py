@@ -84,6 +84,7 @@ class Cell(metaclass=ABCMeta):
 
 
 class DenseCell(Cell):
+    n_gene = 208
     activation_dict = {1: umath.origin,
                        2: umath.relu,
                        3: umath.sigmoid,

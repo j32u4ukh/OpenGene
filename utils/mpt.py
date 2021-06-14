@@ -7,6 +7,8 @@ from abc import ABCMeta, abstractmethod
 class MPT(metaclass=ABCMeta):
     def __init__(self, n_process: int = 1, n_threading: int = 1):
         """
+        TODO: 每個核心應該可以有不同數量的執行序數量，應根據傳入任務數來分配
+
         當 n_process = 1 且 threading = 1，則直接執行目標函式。
         若 n_process = 1 但 threading > 1，則使用多執行序來執行目標函式。
         若 n_process > 1，則使用多核心來執行目標函式。
