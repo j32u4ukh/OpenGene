@@ -1,5 +1,6 @@
 from population import Population
-
+from organism.polynomial import UnaryLinearOrganism
+import os
 """
 mode 1
 # 根據適應度換算成機率，越高被選擇到的機率則越高，適應度低的基因組也有機會被選到，但機率也比較低
@@ -19,14 +20,21 @@ mode 4
 
 # 一元一次方程式 f(x) = a * x + b
 class UnaryLinearPopulation(Population):
-    def __init__(self, env: str, label: str, n_population):
+    def __init__(self, env: str, label: str, n_population: int = 500):
         super().__init__(env=env, label=label, n_population=n_population)
 
-    def load(self, env: str, label: str):
-        pass
+    def load(self, path: str):
+        if os.path.exists(path):
+            pass
+        else:
+            data = {"organisms": []}
 
     def reproduction(self):
         pass
 
     def geneExchange(self):
         pass
+
+
+if __name__ == "__main__":
+    population = UnaryLinearPopulation(env="test", label="0", n_population=10)

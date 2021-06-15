@@ -40,6 +40,9 @@ class LinearStructure(Structure):
         # 由於為"直線型串接"，理論上只會有一個 ListNode 才對
         return cells[0]
 
+    def loadValue(self, gene):
+        pass
+
 
 class ListNode:
     def __init__(self, node_id, root=None):

@@ -6,7 +6,7 @@ import os
 class Population(metaclass=ABCMeta):
     # TODO: 讀取紀錄檔，並建置生命體；若無紀錄檔，則協助初始化
     # TODO: 不同族群之間也可以交換基因，但交換規則應和族群內不同，因為不同族群的基因組合應差異較族群內大
-    def __init__(self, env: str, label: str, n_population=0):
+    def __init__(self, env: str, label: str, n_population: int = 500):
         self.env = env
         self.label = label
 

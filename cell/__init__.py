@@ -83,6 +83,18 @@ class Cell(metaclass=ABCMeta):
             yield genome
 
 
+class RawCell(Cell):
+    def __init__(self, gene):
+        super().__init__(gene, n_struct=0, n_value=0,
+                         logger_dir="RawCell", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+
+    def build(self):
+        pass
+
+    def call(self, input_data):
+        return input_data
+
+
 class DenseCell(Cell):
     n_gene = 208
     activation_dict = {1: umath.origin,

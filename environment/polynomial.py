@@ -7,7 +7,9 @@ import numpy as np
 class UnaryLinear(Environment):
     def __init__(self, n_population, equation, label="0"):
         super().__init__()
-        self.population = UnaryLinearPopulation(label=label, n_population=n_population)
+        self.population = UnaryLinearPopulation(env=self.__class__.__name__,
+                                                label=label,
+                                                n_population=n_population)
         self.equation = equation
 
     def modifyEarlyStop(self):
