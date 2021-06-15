@@ -1,10 +1,10 @@
-# TODO: 或許可在不同能量存量下，開關不同細胞的功能，例如關閉較不重要的、耗費較多能量的細胞
 from abc import ABCMeta, abstractmethod
 
 from gene import createGene
 
 
 class Organism(metaclass=ABCMeta):
+    # TODO: 或許可在不同能量存量下，開關不同細胞的功能，例如關閉較不重要的、耗費較多能量的細胞
     n_gene = 0
 
     def __init__(self, energy, mutation_rate):
