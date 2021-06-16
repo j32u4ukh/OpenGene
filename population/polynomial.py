@@ -1,5 +1,6 @@
+from organism import Organism
 from population import Population
-from organism.polynomial import UnaryLinearOrganism
+from organism.linear_organism import LinearOrganism
 import os
 """
 mode 1
@@ -27,7 +28,16 @@ class UnaryLinearPopulation(Population):
         if os.path.exists(path):
             pass
         else:
-            data = {"organisms": []}
+            organisms = []
+
+            for _ in range(self.n_population):
+                # 基因
+                n_cell, gene = Organism.createGene(n_gene=LinearOrganism.n_gene)
+
+
+
+
+            data = {"organisms": [LinearOrganism() for _ in range(self.n_population)]}
 
     def reproduction(self):
         pass

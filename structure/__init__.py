@@ -5,6 +5,7 @@ TODO: 網狀結構類別，用於管理細胞結構的管理，某些結構可�
 讓訊號的傳遞可以自然的傳遞或衰退)
 """
 from abc import ABCMeta, abstractmethod
+import numpy as np
 
 
 class Structure(metaclass=ABCMeta):
@@ -12,5 +13,5 @@ class Structure(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def parseStructure(self, matrix):
+    def parseStructure(self, gene: np.array, n_cell: int):
         pass

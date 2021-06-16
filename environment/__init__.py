@@ -8,6 +8,7 @@ class Environment(metaclass=ABCMeta):
     @abstractmethod
     def modifyEarlyStop(self):
         # TODO: 定義當生命體無法在獲得更好表現時的提早停止演化機制
+        # TODO: 環境應可"部分影響"生命體的變異機率(表現不夠好時，促進變異；表現足夠好時，則減緩變異、甚至歸零)，主要影響細胞結構
         pass
 
     # 評估表現

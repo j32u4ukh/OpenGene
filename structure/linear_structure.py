@@ -8,37 +8,42 @@ class LinearStructure(Structure):
     def __init__(self):
         super().__init__()
 
-    def parseStructure(self, matrix):
-        cells = []
-        rows = len(matrix)
+    def parseStructure(self, gene:np.array, n_node:int):
+        idx = 0
+        nodes = []
 
-        # 根據結構矩陣，產生 ListCell
-        for row in range(rows):
-            try:
-                idx = np.where(matrix[row] == 1.0)[0][0]
-            except IndexError:
-                continue
+        # 根據結構矩陣，產生 ListNode
+        for _ in range(n_node):
+            node_gene = gene[idx: idx + n_node]
 
-            list_cell = ListNode(row)
-            list_cell.add(idx)
+            # LinearStructure 只會有一個連結對象，因此取第 0 個即可
+            node_id = np.where(node_gene == 1.0)[0]
 
-            cells.append(list_cell)
+            # 更新索引值
+            idx += n_node
+
+            # 產生節點(沒有實作的細胞稱為節點)
+            list_node = ListNode(node_gene)
+            list_node.add(node_id)
+
+            # 利用 cells 管理所有節點
+            nodes.append(list_node)
 
         # 檢查 ListNode 的頭尾連結關係
-        ln1, ln2 = ListNode.checkLinkable(cells)
-        is_linkable = (ln1 is not None) and (ln2 is not None)
+        node1, node2 = ListNode.checkLinkable(nodes)
+        is_linkable = (node1 is not None) and (node2 is not None)
 
         while is_linkable:
             # 將 nodes[ln2] 加到 nodes[ln1] 之後，並將 nodes[ln2] 移除
-            cells[ln1] += cells[ln2]
-            del cells[ln2]
+            nodes[node1] += nodes[node2]
+            del nodes[node2]
 
             # 檢查 ListNode 的頭尾連結關係
-            ln1, ln2 = ListNode.checkLinkable(cells)
-            is_linkable = (ln1 is not None) and (ln2 is not None)
+            node1, node2 = ListNode.checkLinkable(nodes)
+            is_linkable = (node1 is not None) and (node2 is not None)
 
         # 由於為"直線型串接"，理論上只會有一個 ListNode 才對
-        return cells[0]
+        return nodes[0]
 
     def loadValue(self, gene):
         pass
