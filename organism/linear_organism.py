@@ -15,7 +15,8 @@ class LinearOrganism(Organism):
     def formStructure(self, gene):
         self.structure = LinearStructure()
 
-        struct_gene = gene[8: 8 + self.n_cell**2].reshape((self.n_cell, self.n_cell))
+        struct_gene = gene[8: 8 + self.n_cell**2]
+        self.structure.parseStructure(struct_gene, n_node=self.n_cell)
 
     def toParams(self):
         pass

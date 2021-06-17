@@ -9,22 +9,28 @@ class LinearStructure(Structure):
         super().__init__()
 
     def parseStructure(self, gene:np.array, n_node:int):
-        idx = 0
+        """
+        將一維陣列的 gene 轉化為二維陣列的 matrix，在索引值的讀取上有較好的表現。
+        在發生 IndexError 的時候，可以確保索引值會正確增加與取得。
+
+        :param gene: 定義結構的基因(一維陣列 shape = (n_node*n_node,))
+        :param n_node: 細胞個數
+        :return:
+        """
+        matrix = gene.reshape((n_node, n_node))
         nodes = []
 
         # 根據結構矩陣，產生 ListNode
-        for _ in range(n_node):
-            node_gene = gene[idx: idx + n_node]
-
-            # LinearStructure 只會有一個連結對象，因此取第 0 個即可
-            node_id = np.where(node_gene == 1.0)[0]
-
-            # 更新索引值
-            idx += n_node
+        for i in range(n_node):
+            try:
+                j = np.where(matrix[i] == 1.0)[0][0]
+            except IndexError:
+                # LinearStructure 是一個接一個，因此 5 個細胞只會有 4 個連結，因而產生 IndexError
+                continue
 
             # 產生節點(沒有實作的細胞稱為節點)
-            list_node = ListNode(node_gene)
-            list_node.add(node_id)
+            list_node = ListNode(i)
+            list_node.add(j)
 
             # 利用 cells 管理所有節點
             nodes.append(list_node)
@@ -105,7 +111,7 @@ class ListNode:
         return self.lastNode().node_id
 
 
-# 產生"線性的"結構定義矩陣
+# 產生"線性的"結構定義矩陣(只會 a -> b 不會 a -> b, c 或是 a -> b & b -> a 形成循環)
 def createLinearStructure(n_cell):
     matrix = np.zeros((n_cell, n_cell))
     sequence = np.arange(0, n_cell)
@@ -117,13 +123,21 @@ def createLinearStructure(n_cell):
     for i in range(1, n_cell):
         y = sequence[i]
 
-        matrix[x, y] = 1
+        matrix[x, y] = 1.0
         x = y
 
-    return matrix
+    structure_gene = matrix.reshape(-1)
+    return structure_gene
 
 
 if __name__ == "__main__":
+    def testCreater(n_cell=5):
+        structure_gene = createLinearStructure(n_cell=n_cell)
+        print(structure_gene)
+
+        matrix = structure_gene.reshape((n_cell, n_cell))
+        print(matrix)
+
     def testListNode():
         list_node1 = ListNode(1)
         list_node1.add(2)
@@ -161,47 +175,49 @@ if __name__ == "__main__":
         for node in nodes:
             print(node)
 
-    def testParseStructure():
-        from sys import getsizeof
+    def testParseStructure(n_node):
+        gene = createLinearStructure(n_node)
+        matrix = gene.reshape((n_node, n_node))
+        print(f"matrix:\n{matrix}")
+        nodes = []
 
-        cells = []
-        matrix = createLinearStructure(n_cell=10)
-        print(matrix)
-        print(f"size of matrix:", getsizeof(matrix))
-
-        rows = len(matrix)
-        for row in range(rows):
+        # 根據結構矩陣，產生 ListNode
+        for i in range(n_node):
             try:
-                idx = np.where(matrix[row] == 1.0)[0][0]
+                j = np.where(matrix[i] == 1.0)[0][0]
             except IndexError:
                 continue
 
-            list_cell = ListNode(row)
-            list_cell.add(idx)
+            # 產生節點(沒有實作的細胞稱為節點)
+            list_node = ListNode(i)
+            list_node.add(j)
+            print(f"list_node: {list_node}")
 
-            cells.append(list_cell)
+            # 利用 cells 管理所有節點
+            nodes.append(list_node)
 
-        for i, cell in enumerate(cells):
-            print(i, cell)
-
-        print("==================================================")
-
-        lc1, lc2 = ListNode.checkLinkable(cells)
-
-        is_linkable = (lc1 is not None) and (lc2 is not None)
+        # 檢查 ListNode 的頭尾連結關係
+        node1, node2 = ListNode.checkLinkable(nodes)
+        is_linkable = (node1 is not None) and (node2 is not None)
 
         while is_linkable:
-            cells[lc1] += cells[lc2]
-            del cells[lc2]
+            # 將 nodes[ln2] 加到 nodes[ln1] 之後，並將 nodes[ln2] 移除
+            nodes[node1] += nodes[node2]
+            del nodes[node2]
 
-            lc1, lc2 = ListNode.checkLinkable(cells)
-            is_linkable = (lc1 is not None) and (lc2 is not None)
+            # 檢查 ListNode 的頭尾連結關係
+            node1, node2 = ListNode.checkLinkable(nodes)
+            is_linkable = (node1 is not None) and (node2 is not None)
 
-        for i, cell in enumerate(cells):
-            print(i, cell)
+        # 由於為"直線型串接"，理論上只會有一個 ListNode 才對
+        print(nodes[0])
 
-        print(f"size of ListCell:", getsizeof(cells[0]))
+    def testLinearStructure(n_node=8):
+        gene = createLinearStructure(n_node)
+        linear_structure = LinearStructure()
+        linear_structure.parseStructure(gene=gene, n_node=n_node)
 
 
+    # testCreater()
     # testListNode()
-    testParseStructure()
+    testParseStructure(n_node=8)
