@@ -1,6 +1,8 @@
 from abc import ABCMeta, abstractmethod
+
 import numpy as np
-from gene import createGene, Gene, translateStruct
+
+from gene import translateStruct
 
 
 class Organism(metaclass=ABCMeta):
@@ -8,6 +10,9 @@ class Organism(metaclass=ABCMeta):
 
     # cls.n_gene 為初始化時的基因個數要求，會隨著基因變異而有所不同，實際基因長度會定義在 self.n_gene
     n_gene = 904268
+
+    # 定義每個細胞所使用的基因數量(包含前 8 位基因用於區分種類)
+    n_gene_per_cell = 4096
 
     def __init__(self, gene: np.array, n_cell: int = -1, energy: float = 100.0, mutation_rate: float = 0.03):
         # 生命運作所需能量
@@ -73,7 +78,7 @@ class Organism(metaclass=ABCMeta):
         base_power = np.power([2.0, 3.0, 5.0, 7.0],
                               [base2, base3, base5, base7])
         n_cell = np.cumproduct(base_power)[-1]
-        n_gene_demand = n_cell * (n_cell + 4096) + 8
+        n_gene_demand = n_cell * (n_cell + Organism.n_gene_per_cell) + 8
 
         if n_gene >= n_gene_demand:
             return n_cell

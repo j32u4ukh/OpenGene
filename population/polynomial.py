@@ -1,7 +1,9 @@
-from organism import Organism
-from population import Population
-from organism.linear_organism import LinearOrganism
 import os
+
+from organism import Organism
+from organism.linear_organism import LinearOrganism
+from population import Population
+
 """
 mode 1
 # 根據適應度換算成機率，越高被選擇到的機率則越高，適應度低的基因組也有機會被選到，但機率也比較低
@@ -33,9 +35,6 @@ class UnaryLinearPopulation(Population):
             for _ in range(self.n_population):
                 # 基因
                 n_cell, gene = Organism.createGene(n_gene=LinearOrganism.n_gene)
-
-
-
 
             data = {"organisms": [LinearOrganism() for _ in range(self.n_population)]}
 
