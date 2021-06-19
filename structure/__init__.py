@@ -13,6 +13,11 @@ class Structure(metaclass=ABCMeta):
     def __init__(self):
         pass
 
+    # 根據節構基因，形成 Structure
     @abstractmethod
-    def parseStructure(self, gene: np.array, n_cell: int):
+    def buildStructure(self, gene: np.array, n_cell: int):
+        pass
+
+    @abstractmethod
+    def loadCells(self, cells):
         pass

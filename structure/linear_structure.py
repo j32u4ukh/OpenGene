@@ -5,10 +5,11 @@ from structure import Structure
 
 # 直線型串接的基因組
 class LinearStructure(Structure):
-    def __init__(self):
+    def __init__(self, gene: np.array, n_node: int):
         super().__init__()
+        self.list_node = self.buildStructure(gene=gene, n_node=n_node)
 
-    def parseStructure(self, gene:np.array, n_node:int):
+    def buildStructure(self, gene: np.array, n_node: int):
         """
         將一維陣列的 gene 轉化為二維陣列的 matrix，在索引值的讀取上有較好的表現。
         在發生 IndexError 的時候，可以確保索引值會正確增加與取得。
@@ -51,14 +52,21 @@ class LinearStructure(Structure):
         # 由於為"直線型串接"，理論上只會有一個 ListNode 才對
         return nodes[0]
 
-    def loadValue(self, gene):
-        pass
+    def loadCells(self, cells):
+        self.list_node.setCell(cell=cells[self.list_node.node_id])
+        curr_node = self.list_node.next_node
+
+        while curr_node is not None:
+            curr_node.setCell(cell=cells[curr_node.node_id])
+            curr_node = curr_node.next_node
 
 
 class ListNode:
     def __init__(self, node_id, root=None):
         self.root = root
         self.node_id = node_id
+        self.cell = None
+
         self.next_node = None
 
     def __add__(self, other):
@@ -97,9 +105,9 @@ class ListNode:
 
     def add(self, next_id):
         if self.next_node is None:
-            self.next_node = ListNode(next_id, root=self)
+            self.next_node = ListNode(node_id=next_id, root=self)
         else:
-            self.next_node.add(next_id)
+            self.next_node.add(next_id=next_id)
 
     def lastNode(self):
         if self.next_node is not None:
@@ -109,6 +117,10 @@ class ListNode:
 
     def lastNodeId(self):
         return self.lastNode().node_id
+
+    def setCell(self, cell):
+        # 若是網狀結構，則需檢查當前 cell 是否為 None，甚至'下一個 cell'是否為 None，以避免環狀結構
+        self.cell = cell
 
 
 # 產生"線性的"結構定義矩陣(只會 a -> b 不會 a -> b, c 或是 a -> b & b -> a 形成循環)
@@ -137,6 +149,7 @@ if __name__ == "__main__":
 
         matrix = structure_gene.reshape((n_cell, n_cell))
         print(matrix)
+
 
     def testListNode():
         list_node1 = ListNode(1)
@@ -175,6 +188,7 @@ if __name__ == "__main__":
         for node in nodes:
             print(node)
 
+    # 分析結構基因，構成 ListNode
     def testParseStructure(n_node):
         gene = createLinearStructure(n_node)
         matrix = gene.reshape((n_node, n_node))
@@ -214,8 +228,7 @@ if __name__ == "__main__":
 
     def testLinearStructure(n_node=8):
         gene = createLinearStructure(n_node)
-        linear_structure = LinearStructure()
-        linear_structure.parseStructure(gene=gene, n_node=n_node)
+        linear_structure = LinearStructure(gene=gene, n_node=n_node)
 
 
     # testCreater()

@@ -89,6 +89,17 @@ def translateStruct(genome: np.array):
     return int(translated + 1)
 
 
+def reverseStructTranslation(struct_value):
+    if struct_value == 1:
+        return np.array([0, 0])
+    elif struct_value == 2:
+        return np.array([0, 1])
+    elif struct_value == 3:
+        return np.array([1, 0])
+    else:
+        return np.array([1, 1])
+
+
 # 計算漢明距離
 def hamming(a: np.array, b: np.array, normalize=False):
     hamm = len(nonzero(a != b)[0])

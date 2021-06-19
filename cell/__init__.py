@@ -21,6 +21,9 @@ class Cell(metaclass=ABCMeta):
     # 定義數值的基因組個數
     n_value = None
 
+    # 定義每個細胞所使用的基因數量(包含前 8 位基因用於區分種類)
+    n_gene = 4096
+
     def __init__(self, gene, n_struct, n_value, logger_dir="cell",
                  logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
         """
@@ -92,6 +95,7 @@ class RawCell(Cell):
         pass
 
     def call(self, input_data):
+        # TODO: 考慮多個輸入
         return input_data
 
 

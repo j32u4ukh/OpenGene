@@ -2,7 +2,9 @@ from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
-from gene import translateStruct
+from cell import Cell
+from gene import translateStruct, createGene
+from cell.cell_factory import CellFactory
 
 
 class Organism(metaclass=ABCMeta):
@@ -21,13 +23,24 @@ class Organism(metaclass=ABCMeta):
         # 變異機率
         self.mutation_rate = mutation_rate
 
-        self.gene = gene
+        # 根據索引值，將不同用途的基因做分類
+        self.number_gene = gene[:8]
+        structure_end = n_cell**2 + 8
+        self.structure_gene = gene[8: structure_end]
+        self.value_gene = gene[structure_end:]
+
         self.n_gene = len(gene)
         self.n_cell = n_cell
         self.structure = None
+        self.cells = []
 
+        # 形成細胞連結架構
+        self.buildStructure()
+        self.buildOrganism()
+
+    # 根據 n_gene，生成有效的基因序列
     @staticmethod
-    def createGene(n_gene):
+    def createGene(n_gene=None):
         """
         所需序列長度為 n_gene，此函示反過來約束根據前面幾位結構基因要求長度不可超過 n_gene。
         長度符合約束後，再產生剩餘的所需基因。
@@ -53,6 +66,9 @@ class Organism(metaclass=ABCMeta):
          n_cell: 細胞個數
          gene: 返回符合基因結構要求的基因序列
         """
+        if n_gene is None:
+            n_gene = Organism.n_gene
+
         # 檢查基因序列長度時，僅需前面 8 位基因即可
         struct_gene = np.random.randint(low=0, high=2, size=8)
         n_cell = Organism.checkGeneNumber(struct_gene, n_gene)
@@ -62,23 +78,47 @@ class Organism(metaclass=ABCMeta):
             n_cell = Organism.checkGeneNumber(struct_gene, n_gene)
 
         # 確保基因序列長度符合結構要求後，再產生後面所需長度的基因即可
+        # 這裡確保了基因的有效性才返回，但實際演化的過程中，則會將無效的基因直接淘汰
         gene = np.random.randint(low=0, high=2, size=n_gene - 8)
         gene = np.append(struct_gene, gene)
 
         return n_cell, gene
 
     @staticmethod
+    def manualSettingGene(base2=0, base3=0, base5=0, base7=0, kind="linear"):
+        from structure.linear_structure import createLinearStructure
+        from gene import reverseStructTranslation
+        number_gene = np.concatenate((reverseStructTranslation(base2 + 1),
+                                      reverseStructTranslation(base3 + 1),
+                                      reverseStructTranslation(base5 + 1),
+                                      reverseStructTranslation(base7 + 1)))
+        base_power = np.power([2.0, 3.0, 5.0, 7.0],
+                              [base2, base3, base5, base7])
+        n_cell = int(np.cumproduct(base_power)[-1])
+        structure_gene = createLinearStructure(n_cell=n_cell)
+        value_gene = createGene(n_gene=Cell.n_gene * n_cell)
+
+        return np.concatenate((number_gene, structure_gene, value_gene))
+
+    # 檢查架構所需基因數量
+    @staticmethod
     def checkGeneNumber(struct_gene, n_gene):
-        base2 = translateStruct(struct_gene[0: 2])
-        base3 = translateStruct(struct_gene[2: 4])
-        base5 = translateStruct(struct_gene[4: 6])
-        base7 = translateStruct(struct_gene[6: 8])
+        """
+
+        :param struct_gene: 定義架構的基因序列
+        :param n_gene: 總基因序列長度要求
+        :return:
+        """
+        base2 = translateStruct(struct_gene[0: 2]) - 1
+        base3 = translateStruct(struct_gene[2: 4]) - 1
+        base5 = translateStruct(struct_gene[4: 6]) - 1
+        base7 = translateStruct(struct_gene[6: 8]) - 1
 
         # 計算該架構所需基因數量
         base_power = np.power([2.0, 3.0, 5.0, 7.0],
                               [base2, base3, base5, base7])
         n_cell = np.cumproduct(base_power)[-1]
-        n_gene_demand = n_cell * (n_cell + Organism.n_gene_per_cell) + 8
+        n_gene_demand = n_cell * (n_cell + Cell.n_gene) + 8
 
         if n_gene >= n_gene_demand:
             return n_cell
@@ -86,18 +126,31 @@ class Organism(metaclass=ABCMeta):
             return -1
 
     @abstractmethod
-    def formStructure(self, gene):
+    def buildStructure(self):
         """
         根據定義結構的基因，連結各個細胞，產生尚未包含數值的結構，n^2 個細胞，利用 Structure 來解析。
 
-        :return: "細胞結構", "尚未使用到的基因"
+        :return:
         """
         pass
+
+    def buildOrganism(self):
+        CellFactory.initCodeBook()
+        cells = []
+
+        for i in range(self.n_cell):
+            idx = i * Cell.n_gene
+            genome = self.value_gene[idx: idx + Cell.n_gene]
+            cell = CellFactory.createCell(genome)
+            cells.append(cell)
+
+        self.structure.loadCells(cells=cells)
 
     @abstractmethod
     def call(self):
         pass
 
+    # 中斷演化 或 輸出演化結果 時，皆須將 Organism 轉化為參數形式，以寫入檔案
     @abstractmethod
     def toParams(self):
         pass

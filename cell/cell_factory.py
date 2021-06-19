@@ -10,6 +10,8 @@ class CellFactory:
     def initCodeBook():
         if CellFactory.code_book is None:
             # TODO: 是否可以改寫成文件形式?而非直接寫在原始碼
+            # 參考1: https://stackoverflow.com/questions/553784/can-you-use-a-string-to-instantiate-a-class
+            # 參考2: https://stackoverflow.com/questions/452969/does-python-have-an-equivalent-to-java-class-forname
             CellFactory.code_book = {
                 0: RawCell,
                 1: DenseCell
@@ -30,10 +32,10 @@ if __name__ == "__main__":
     def testCreateCell():
         from gene import createGene
         import numpy as np
-        from organism import Organism
+        from cell import Cell
 
         CellFactory.initCodeBook()
-        gene1 = createGene(n_gene=Organism.n_gene_per_cell)
+        gene1 = createGene(n_gene=Cell.n_gene)
         code = gene1[:8]
         n_kind = len(CellFactory.code_book)
         code_value = (translateStruct(code) - 1) % n_kind
