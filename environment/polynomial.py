@@ -3,6 +3,7 @@ from population.polynomial import UnaryLinearPopulation
 import numpy as np
 
 
+# TODO: 先解決固定參數的一元一次方程式，再透過傳入多組解來求出任意參數一元一次方程式
 # 待解決任務：一元一次方程式
 class UnaryLinear(Environment):
     def __init__(self, n_population, equation, label="0"):

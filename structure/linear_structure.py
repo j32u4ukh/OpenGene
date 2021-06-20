@@ -1,15 +1,14 @@
 import numpy as np
 
-from structure import Structure
-
 
 # 直線型串接的基因組
-class LinearStructure(Structure):
+class LinearStructure:
     def __init__(self, gene: np.array, n_node: int):
         super().__init__()
         self.list_node = self.buildStructure(gene=gene, n_node=n_node)
 
-    def buildStructure(self, gene: np.array, n_node: int):
+    @staticmethod
+    def buildStructure(gene: np.array, n_node: int):
         """
         將一維陣列的 gene 轉化為二維陣列的 matrix，在索引值的讀取上有較好的表現。
         在發生 IndexError 的時候，可以確保索引值會正確增加與取得。

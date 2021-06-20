@@ -13,9 +13,6 @@ class Organism(metaclass=ABCMeta):
     # cls.n_gene 為初始化時的基因個數要求，會隨著基因變異而有所不同，實際基因長度會定義在 self.n_gene
     n_gene = 904268
 
-    # 定義每個細胞所使用的基因數量(包含前 8 位基因用於區分種類)
-    n_gene_per_cell = 4096
-
     def __init__(self, gene: np.array, n_cell: int = -1, energy: float = 100.0, mutation_rate: float = 0.03):
         # 生命運作所需能量
         self.energy = energy
@@ -84,6 +81,7 @@ class Organism(metaclass=ABCMeta):
 
         return n_cell, gene
 
+    # 手動指定細胞個數的基因序列
     @staticmethod
     def manualSettingGene(base2=0, base3=0, base5=0, base7=0, kind="linear"):
         from structure.linear_structure import createLinearStructure

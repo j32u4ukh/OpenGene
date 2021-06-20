@@ -1,4 +1,4 @@
-from cell import RawCell, DenseCell
+from cell import Cell, RawCell, DenseCell
 from gene import translateStruct
 
 
@@ -19,8 +19,8 @@ class CellFactory:
 
     @staticmethod
     def createCell(gene):
-        code = gene[:8]
-        value_gene = gene[8:]
+        code = gene[:Cell.n_code]
+        value_gene = gene[Cell.n_code:]
         n_kind = len(CellFactory.code_book)
         code_value = (translateStruct(code) - 1) % n_kind
 
@@ -36,7 +36,7 @@ if __name__ == "__main__":
 
         CellFactory.initCodeBook()
         gene1 = createGene(n_gene=Cell.n_gene)
-        code = gene1[:8]
+        code = gene1[:Cell.n_code]
         n_kind = len(CellFactory.code_book)
         code_value = (translateStruct(code) - 1) % n_kind
         print(f"code_value: {code_value}, code: {code}")

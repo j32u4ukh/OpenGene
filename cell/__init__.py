@@ -21,14 +21,17 @@ class Cell(metaclass=ABCMeta):
     # 定義數值的基因組個數
     n_value = None
 
-    # 定義每個細胞所使用的基因數量(包含前 8 位基因用於區分種類)
+    # 定義每個細胞所使用的基因數量(包含前 16 位基因用於區分種類)
     n_gene = 4096
+
+    # 前 16 位基因用於區分細胞種類
+    n_code = 16
 
     def __init__(self, gene, n_struct, n_value, logger_dir="cell",
                  logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
         """
 
-        :param gene: 傳入的基因段
+        :param gene: 傳入的基因段(不包含定義種類的基因，因此長度應為 4080 個)
         :param n_struct: 定義結構的基因組個數
         :param n_value: 定義數值的基因組個數
         """
