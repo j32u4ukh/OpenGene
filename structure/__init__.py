@@ -16,93 +16,104 @@ class Structure:
         pass
 
 
-# TODO: 建構重點在於避免將根節點作為子節點加入，子節點本身可能沒問題，但孫節點可能有問題，需再進一步做修剪
-class GraphNode:
-    def __init__(self, node_id, roots: list = None, leaves: list = None):
-        self.node_id = node_id
-        self.layer = 0
-
-        if roots is None:
-            self.roots = []
-        else:
-            self.roots = roots
-
-        if leaves is None:
-            self.leaves = []
-        else:
-            self.leaves = leaves
+class Vertex:
+    def __init__(self, vertex_id):
+        self.vertex_id = vertex_id
+        self.forward = []
+        self.backward = []
 
     def __str__(self):
-        leaves = [leaf.node_id for leaf in self.leaves]
-        info = f"GraphNode({self.node_id} -> {leaves})"
+        forward_vertex = [vertex.vertex_id for vertex in self.forward]
+        info = f"Vertex({self.vertex_id} -> {forward_vertex})"
 
         return info
 
-    def __add__(self, other):
-        last_leaf = self.getLastLeaf(node_id=other.node_id)
+    __repr__ = __str__
 
-        if last_leaf is not None:
-            last_leaf.addLeaf(*other.leaves)
+    def addForward(self, other):
+        self.forward.append(other)
 
-        return self
+    def addBackward(self, other):
+        self.backward.append(other)
 
-    def addRoot(self, *roots):
-        for root in roots:
-            self.roots.append(root)
+    def getDepth(self, reverse: bool = False):
+        if reverse:
+            ward = self.backward
+        else:
+            ward = self.backward
 
-    def addLeaf(self, *leaves):
-        for leaf in leaves:
-            self.leaves.append(leaf)
+        if len(ward) == 0:
+            return 0
+        else:
+            depth = 0
 
-    def setLayer(self, layer):
-        self.layer = layer
+            for w in ward:
+                depth = max(depth, w.getDepth())
 
-    def getLastLeaves(self):
-        leaves = []
+            return depth
 
-        for leaf in self.leaves:
-            print(f"getLastLeaves | {leaf.node_id}")
-            sub_leaves = leaf.leaves
+    # 將 forward 以及 forward 的 forward 當中的'自己'移除，避免環狀結構
+    def prune(self):
+        pass
 
-            if len(sub_leaves) == 0:
-                leaves.append(leaf)
-            else:
-                for sub_leaf in sub_leaves:
-                    sub_last_leaves = sub_leaf.getLastLeaves()
-                    leaves += sub_last_leaves
 
-        return leaves
+class Graph:
+    def __init__(self):
+        self.vertices = []
 
-    def getLastLeaf(self, node_id):
-        leaves = self.getLastLeaves()
+    def __str__(self):
+        info = "Graph"
 
-        for leaf in leaves:
-            print(f"getLastLeaf | {leaf.node_id}")
-            if leaf.node_id == node_id:
-                return leaf
+        for vertex in self.vertices:
+            info += f"\n{vertex}"
 
-        return None
+        return info
 
-    def getLeavesId(self):
-        last_leaves = self.getLastLeaves()
-        return [leaf.node_id for leaf in last_leaves]
+    __repr__ = __str__
 
-    def isContainRoot(self, node_id):
-        if len(self.roots) > 0:
-            # 檢查在 roots 當中是否已有 node_id
-            for root in self.roots:
-                if node_id == root.node_id:
-                    return True
+    @staticmethod
+    def addEdge(vertex1: Vertex, vertex2: Vertex):
+        vertex1.addForward(vertex2)
+        vertex2.addBackward(vertex1)
 
-            # 檢查在 roots 的 root 當中是否已有 node_id
-            for root in self.roots:
-                if root.isContainRoot(node_id):
-                    return True
+    def addEdgeById(self, id1: int, id2: int):
+        vertex1 = self.findVertex(vertex_id=id1)
+        vertex2 = self.findVertex(vertex_id=id2)
+
+        if vertex1 is not None and vertex2 is not None:
+            print(f"({id1}).addForward({id2})")
+            vertex1.addForward(vertex2)
+            print(f"({id2}).addBackward({id1})")
+            vertex2.addBackward(vertex1)
+            print()
+
+    def loadAdjacencyMatrix(self, matrix):
+        pass
+
+    def addVertex(self, vertex: Vertex):
+        if not self.isContainVertex(vertex_id=vertex.vertex_id):
+            self.vertices.append(vertex)
+
+    def addVertexById(self, vertex_id: int):
+        if not self.isContainVertex(vertex_id=vertex_id):
+            self.vertices.append(Vertex(vertex_id=vertex_id))
+
+    def isContainVertex(self, vertex_id: int):
+        for vertex in self.vertices:
+            if vertex.vertex_id == vertex_id:
+                return True
 
         return False
 
-    # 檢查
-    def pruneLeaf(self):
+    def findVertex(self, vertex_id: int):
+        for vertex in self.vertices:
+            if vertex.vertex_id == vertex_id:
+                return vertex
+
+        return None
+
+    # 將 forward 以及 forward 的 forward 當中的親頂點移除
+    def prune(self):
         pass
 
 
@@ -122,9 +133,10 @@ if __name__ == "__main__":
     # print(f"gene -> {gene.shape}\n{gene}")
 
     gene = gene.reshape((n_cell, n_cell))
-    # print(gene)
+    print(gene)
 
     nodes = []
+
 
     def findConnection(nodes):
         n_node = len(nodes)
@@ -132,13 +144,17 @@ if __name__ == "__main__":
         connection = []
 
         for i in range(n_node):
+            # TODO: 不是找最後一個節點，而是找路徑上是否有可以連結兩棵 GraphTree 的地方
             leaves_id = nodes[i].getLeavesId()
+            print(f"LeavesId of nodes[{i}]: {leaves_id}")
 
             for j in range(n_node):
                 if i == j:
                     continue
 
-                if nodes[j].node_id in leaves_id:
+                node_id = nodes[j].node_id
+                print(f"j nodes[{j}]: {node_id}")
+                if node_id in leaves_id:
                     connection.append(j)
 
             if len(connection) > 0:
@@ -147,16 +163,21 @@ if __name__ == "__main__":
 
         return idx, connection
 
+
+    graph = Graph()
+
     # 初始化
     for i in range(n_cell):
         structure_gene = gene[i]
-        leaves_index = np.where(structure_gene == 1.0)[0]
+        connection_indexs = np.where(structure_gene == 1.0)[0]
 
-        if len(leaves_index) > 0:
-            leaves = [GraphNode(node_id=index) for index in leaves_index]
-            node = GraphNode(node_id=i, leaves=leaves)
-            print(node)
-            nodes.append(node)
+        if len(connection_indexs) > 0:
+            graph.addVertexById(vertex_id=i)
 
-    idx, connection = findConnection(nodes=nodes)
-    print(idx, connection)
+            for index in connection_indexs:
+                graph.addVertexById(vertex_id=index)
+                graph.addEdgeById(id1=i, id2=index)
+
+    for vertex in graph.vertices:
+        depth = vertex.getDepth()
+        print(depth, vertex)
