@@ -1,4 +1,8 @@
+import datetime
+
 import numpy as np
+
+from submodule.Xu3.utils import getLogger
 
 
 # TODO: 或許應直接發展網狀結構，但輸入直線型的基因定義，直接退化成直線型
@@ -17,7 +21,17 @@ class Structure:
 
 
 class Vertex:
-    def __init__(self, vertex_id):
+    def __init__(self, vertex_id,
+                 logger_dir="graph", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
+        self.logger_dir = logger_dir
+        self.logger_name = logger_name
+        self.extra = {"className": f"{self.__class__.__name__}_{vertex_id}"}
+        self.logger = getLogger(logger_name=self.logger_name,
+                                to_file=True,
+                                time_file=False,
+                                file_dir=self.logger_dir,
+                                instance=True)
+
         self.vertex_id = vertex_id
         self.forward = []
         self.backward = []
@@ -42,9 +56,48 @@ class Vertex:
     def removeBackward(self, other):
         self.backward = [vertex for vertex in self.backward if vertex.vertex_id != other.vertex_id]
 
+    def prune(self):
+        vertices = []
+        vids = []
+
+        for v in self.forward:
+            vertices.append(v)
+            vids.append(v.vertex_id)
+
+        n_vid = len(vids)
+        i = 0
+
+        while i < n_vid:
+            vertex = vertices[i]
+
+            for sub_vertex in vertex.forward:
+                if sub_vertex.vertex_id == self.vertex_id:
+                    vertex.removeForward(other=self)
+                    self.removeBackward(other=vertex)
+                    self.logger.debug(f"removeEdge {vertex.vertex_id} -> {self.vertex_id}", extra=self.extra)
+
+                # sub_vertex.vertex_id 不等於 curr_id 且不在 indexs 當中
+                elif sub_vertex.vertex_id not in vids:
+                    # 加入 indexs 當中，以檢查其子節點是否和 curr_vertex 形成環狀結構
+                    vids.append(sub_vertex.vertex_id)
+                    vertices.append(sub_vertex)
+
+            n_vid = len(vids)
+            i += 1
+            self.logger.debug(f"i: {i}, vids({n_vid}): {vids}", extra=self.extra)
+
 
 class Graph:
-    def __init__(self):
+    def __init__(self, logger_dir="graph", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
+        self.logger_dir = logger_dir
+        self.logger_name = logger_name
+        self.extra = {"className": self.__class__.__name__}
+        self.logger = getLogger(logger_name=self.logger_name,
+                                to_file=True,
+                                time_file=False,
+                                file_dir=self.logger_dir,
+                                instance=True)
+
         self.vertices = []
         self.head = []
         self.tail = []
@@ -83,8 +136,17 @@ class Graph:
         if vertex1 is not None and vertex2 is not None:
             Graph.removeEdge(vertex1=vertex1, vertex2=vertex2)
 
-    def loadAdjacencyMatrix(self, matrix):
-        pass
+    def loadAdjacencyMatrix(self, matrix, n_cell):
+        for i in range(n_cell):
+            structure_gene = matrix[i]
+            connection_indexs = np.where(structure_gene == 1.0)[0]
+
+            if len(connection_indexs) > 0:
+                self.addVertexById(vertex_id=i)
+
+                for index in connection_indexs:
+                    self.addVertexById(vertex_id=index)
+                    self.addEdgeById(id1=i, id2=index)
 
     def addVertex(self, vertex: Vertex):
         if not self.isContainVertex(vertex_id=vertex.vertex_id):
@@ -118,41 +180,11 @@ class Graph:
             elif len(vertex.forward) == 0:
                 self.tail.append(vertex)
 
-        print(f"head: {self.head}")
-        print(f"tail: {self.tail}")
-
     # 將 forward 以及 forward 的 forward 當中的親頂點移除
     def prune(self):
         for curr_vertex in self.vertices:
-            print(f"curr_vertex: {curr_vertex}")
-            curr_id = curr_vertex.vertex_id
-
-            # 使用 set 以避免 子節點 和 孫節點 之間產生環狀結構
-            indexs = [vertex.vertex_id for vertex in curr_vertex.forward]
-            n_index = len(indexs)
-            i = 0
-            print(f"i: {i}, indexs({n_index}): {indexs}")
-
-            while i < n_index:
-                index = indexs[i]
-                vertex = self.findVertex(vertex_id=index)
-                print(vertex)
-
-                for sub_vertex in vertex.forward:
-                    if sub_vertex.vertex_id == curr_id:
-                        graph.removeEdge(vertex, curr_vertex)
-                        print(f"removeEdge {vertex.vertex_id} -> {curr_id}")
-
-                    # sub_vertex.vertex_id 不等於 curr_id 且不在 indexs 當中
-                    elif sub_vertex.vertex_id not in indexs:
-                        # 加入 indexs 當中，以檢查其子節點是否和 curr_vertex 形成環狀結構
-                        indexs.append(sub_vertex.vertex_id)
-
-                n_index = len(indexs)
-                i += 1
-                print(f"i: {i}, indexs({n_index}): {indexs}")
-
-            print()
+            self.logger.debug(f"curr_vertex: {curr_vertex}", extra=self.extra)
+            curr_vertex.prune()
 
 
 def createGraphStructure(n_cell, p_rate=0.1):
@@ -168,60 +200,12 @@ def createGraphStructure(n_cell, p_rate=0.1):
 if __name__ == "__main__":
     n_cell = 10
     gene = createGraphStructure(n_cell=n_cell, p_rate=0.1)
-    # print(f"gene -> {gene.shape}\n{gene}")
-
     gene = gene.reshape((n_cell, n_cell))
     print(gene)
 
-    nodes = []
-
-
-    def findConnection(nodes):
-        n_node = len(nodes)
-        idx = 0
-        connection = []
-
-        for i in range(n_node):
-            # TODO: 不是找最後一個節點，而是找路徑上是否有可以連結兩棵 GraphTree 的地方
-            leaves_id = nodes[i].getLeavesId()
-            print(f"LeavesId of nodes[{i}]: {leaves_id}")
-
-            for j in range(n_node):
-                if i == j:
-                    continue
-
-                node_id = nodes[j].node_id
-                print(f"j nodes[{j}]: {node_id}")
-                if node_id in leaves_id:
-                    connection.append(j)
-
-            if len(connection) > 0:
-                idx = i
-                break
-
-        return idx, connection
-
-
     graph = Graph()
-
-    # 初始化
-    for i in range(n_cell):
-        structure_gene = gene[i]
-        connection_indexs = np.where(structure_gene == 1.0)[0]
-
-        if len(connection_indexs) > 0:
-            graph.addVertexById(vertex_id=i)
-
-            for index in connection_indexs:
-                graph.addVertexById(vertex_id=index)
-                graph.addEdgeById(id1=i, id2=index)
-
-    for vertex in graph.vertices:
-        print(vertex)
-
-    print("==================================================")
+    graph.loadAdjacencyMatrix(matrix=gene, n_cell=n_cell)
     graph.build()
-    print("==================================================")
 
     for vertex in graph.vertices:
         print(vertex)
