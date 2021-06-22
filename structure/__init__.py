@@ -46,6 +46,8 @@ class Vertex:
 class Graph:
     def __init__(self):
         self.vertices = []
+        self.head = []
+        self.tail = []
 
     def __str__(self):
         info = "Graph"
@@ -105,6 +107,19 @@ class Graph:
                 return vertex
 
         return None
+
+    # 節點 與 邊 添加完後的建構，去除環狀結構，並篩選出頭尾節點
+    def build(self):
+        self.prune()
+
+        for vertex in self.vertices:
+            if len(vertex.backward) == 0:
+                self.head.append(vertex)
+            elif len(vertex.forward) == 0:
+                self.tail.append(vertex)
+
+        print(f"head: {self.head}")
+        print(f"tail: {self.tail}")
 
     # 將 forward 以及 forward 的 forward 當中的親頂點移除
     def prune(self):
@@ -205,7 +220,7 @@ if __name__ == "__main__":
         print(vertex)
 
     print("==================================================")
-    graph.prune()
+    graph.build()
     print("==================================================")
 
     for vertex in graph.vertices:
