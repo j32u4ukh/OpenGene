@@ -10,6 +10,22 @@ from submodule.Xu3.utils import getLogger
 
 
 class Cell(metaclass=ABCMeta):
+    def __init__(self, logger_dir="cell", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
+        self.logger_dir = logger_dir
+        self.logger_name = logger_name
+        self.extra = {"className": self.__class__.__name__}
+        self.logger = getLogger(logger_name=self.logger_name,
+                                to_file=True,
+                                time_file=False,
+                                file_dir=self.logger_dir,
+                                instance=True)
+
+    @abstractmethod
+    def call(self, input_data):
+        pass
+
+
+class BaseCell(Cell, metaclass=ABCMeta):
     """
     Cell 如何解讀傳入的基因段，可以根據不同類型的 Cell 有不同的定義。
 
@@ -27,22 +43,15 @@ class Cell(metaclass=ABCMeta):
     # 前 16 位基因用於區分細胞種類
     n_code = 16
 
-    def __init__(self, gene, n_struct, n_value, logger_dir="cell",
-                 logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
+    def __init__(self, gene, n_struct, n_value,
+                 logger_dir="cell", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
         """
 
         :param gene: 傳入的基因段(不包含定義種類的基因，因此長度應為 4080 個)
         :param n_struct: 定義結構的基因組個數
         :param n_value: 定義數值的基因組個數
         """
-        self.logger_dir = logger_dir
-        self.logger_name = logger_name
-        self.extra = {"className": self.__class__.__name__}
-        self.logger = getLogger(logger_name=self.logger_name,
-                                to_file=True,
-                                time_file=False,
-                                file_dir=self.logger_dir,
-                                instance=True)
+        super().__init__(logger_dir=logger_dir, logger_name=logger_name)
 
         self.index = 0
         self.gene = gene
@@ -90,28 +99,54 @@ class Cell(metaclass=ABCMeta):
 
 
 class RawCell(Cell):
-    def __init__(self, gene):
-        super().__init__(gene, n_struct=0, n_value=0,
-                         logger_dir="RawCell", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-
-    def build(self):
-        pass
+    def __init__(self, logger_dir="raw_cell", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
+        super().__init__(logger_dir=logger_dir, logger_name=logger_name)
 
     def call(self, input_data):
         # TODO: 考慮多個輸入
         return input_data
 
 
-class DenseCell(Cell):
+class ArbitraryCell(Cell):
+    def __init__(self, cell: np.array,
+                 logger_dir="arbitrary_cell", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
+        super().__init__(logger_dir=logger_dir, logger_name=logger_name)
+        self.cell = cell
+
+    def build(self):
+        pass
+
+    def call(self, input_data):
+        c, h, w = self.cell.shape
+        shape = input_data.shape
+        c_hat = max(c, shape[0])
+        h_hat = max(h, shape[1])
+        w_hat = max(w, shape[2])
+
+        x = np.pad(input_data,
+                   pad_width=((0, c_hat - shape[0]), (0, h_hat - shape[1]), (0, w_hat - shape[2])),
+                   mode='constant',
+                   constant_values=1)
+
+        x = x[:c, :h, :w]
+
+        # TODO: 考慮 self.cell, x 形狀不同且無法 Broadcast 的情況
+        output = self.cell * x
+
+        return output
+
+
+class DenseCell(BaseCell):
     n_gene = 208
     activation_dict = {1: umath.origin,
                        2: umath.relu,
                        3: umath.sigmoid,
                        4: umath.absFunc}
 
-    def __init__(self, gene):
+    def __init__(self, gene,
+                 logger_dir="dense_cell", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")):
         super().__init__(gene, n_struct=6, n_value=48,
-                         logger_dir="DenseCell", logger_name=datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+                         logger_dir=logger_dir, logger_name=logger_name)
 
         struct_genome = self.nextStructGenome()
 
@@ -143,6 +178,36 @@ class DenseCell(Cell):
         self.channels = None
 
         self.build()
+
+    # 計算為了'縮放成當前 filter & window 所需要的維度'，所需要縮放的比例和 padding 的大小，以及 stride 大小
+    @staticmethod
+    def reconstructParam(input_size, filter_size, n_window):
+        """
+        根據 input_size，以及 filter_size，決定 strides, padding
+
+        :param input_size: 輸入數據大小
+        :param filter_size: 濾波器大小
+        :param n_window: 視窗個數
+        :return:
+        """
+        min_require = filter_size + n_window - 1
+
+        if input_size < min_require:
+
+            # 填充至最小要求大小
+            pad_size = math.ceil((min_require - input_size) / 2)
+
+        else:
+            # 無填充
+            pad_size = 0
+
+        if n_window == 1:
+            stride_size = 0
+
+        else:
+            stride_size = math.floor((input_size + 2 * pad_size - filter_size) / (n_window - 1))
+
+        return pad_size, stride_size
 
     def build(self):
         value_genome = self.nextValueGenome()
@@ -261,8 +326,6 @@ class DenseCell(Cell):
 
         return output
 
-    """"""
-
     # 將 input_data 縮放成當前 filter & window 所需要的維度
     def inputReconstruct(self, input_data):
         _, height, width = input_data.shape
@@ -282,41 +345,11 @@ class DenseCell(Cell):
 
         return result, (stride_height, stride_width)
 
-    # 計算為了'縮放成當前 filter & window 所需要的維度'，所需要縮放的比例和 padding 的大小，以及 stride 大小
-    @staticmethod
-    def reconstructParam(input_size, filter_size, n_window):
-        """
-        根據 input_size，以及 filter_size，決定 strides, padding
-
-        :param input_size: 輸入數據大小
-        :param filter_size: 濾波器大小
-        :param n_window: 視窗個數
-        :return:
-        """
-        min_require = filter_size + n_window - 1
-
-        if input_size < min_require:
-
-            # 填充至最小要求大小
-            pad_size = math.ceil((min_require - input_size) / 2)
-
-        else:
-            # 無填充
-            pad_size = 0
-
-        if n_window == 1:
-            stride_size = 0
-
-        else:
-            stride_size = math.floor((input_size + 2 * pad_size - filter_size) / (n_window - 1))
-
-        return pad_size, stride_size
-
 
 if __name__ == "__main__":
     def testCell():
         gene = createGene(n_gene=24)
-        cell = Cell(gene, n_struct=2, n_value=3)
+        cell = BaseCell(gene, n_struct=2, n_value=3)
 
         struct_genome = cell.nextStructGenome()
         print("nextStructGenome:", next(struct_genome))
@@ -343,5 +376,14 @@ if __name__ == "__main__":
         print(f"output2: {output2.shape}")
 
 
+    def testArbitraryCell():
+        x = np.random.rand(1, 3, 4)
+        cell = np.random.rand(2, 3, 2)
+        ac = ArbitraryCell(cell=cell)
+        output = ac.call(input_data=x)
+        print(output.shape)
+
+
     # testCell()
-    testDenseCell()
+    # testDenseCell()
+    testArbitraryCell()
