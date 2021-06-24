@@ -85,44 +85,21 @@ class Vertex:
         """
         self.layer = max(self.layer, layer)
 
-    def loadCell(self, cell):
+    def setCell(self, cell):
         self.cell = cell
 
-    def call(self, input_data: np.array):
+    def call(self, input_data: np.array = None):
+        if input_data is None:
+            last_outputs = []
+
+            for vb in self.backward:
+                last_outputs.append(vb.output)
+
+            input_data = combineOutputs(*last_outputs)
+
         self.logger.debug(f"input: {input_data.shape}", extra=self.extra)
         self.output = self.cell.call(input_data=input_data)
         self.logger.debug(f"output: {self.output.shape}", extra=self.extra)
-
-        # if len(self.forward) == 0:
-        #     return x
-        #
-        # output = []
-        # c, h, w = 0, 0, 0
-        #
-        # for vertex in self.forward:
-        #     x = vertex.call(input_data=x)
-        #     output.append(x)
-        #
-        #     shape = x.shape
-        #     c = max(c, shape[0])
-        #     h = max(h, shape[1])
-        #     w = max(w, shape[2])
-        #
-        # self.logger.debug(f"c: {c}, h: {h}, w: {w}", extra=self.extra)
-        #
-        # n_output = len(output)
-        # self.logger.debug(f"n_output: {n_output}", extra=self.extra)
-        #
-        # for i in range(n_output):
-        #     out = output[i]
-        #     shape = out.shape
-        #
-        #     output[i] = np.pad(output[i],
-        #                        pad_width=((0, c - shape[0]), (0, h - shape[1]), (0, w - shape[2])),
-        #                        mode='constant',
-        #                        constant_values=0)
-        #
-        # return np.array(output)
 
 
 class Graph:
@@ -137,8 +114,12 @@ class Graph:
                                 instance=True)
 
         self.vertices = []
-        self.head = []
-        self.tail = []
+
+        # 排序 layer 數值
+        self.layer = []
+
+        # 管理各個 layer 的節點
+        self.layer_vertices = {}
 
     def __str__(self):
         info = "Graph"
@@ -212,36 +193,35 @@ class Graph:
     def build(self):
         self.prune()
 
-        n_vertex = len(self.vertices)
-        vertices = []
-        vids = []
-
-        for i in range(n_vertex):
-            vertex = self.vertices[i]
-
+        for vertex in self.vertices:
             if len(vertex.backward) == 0:
-                self.head.append(vertex)
-                vertices.append(vertex)
-                vids.append(vertex.vertex_id)
+                vertices = [vertex]
+                n_vertex = len(vertices)
+                idx = 0
 
-            elif len(vertex.forward) == 0:
-                self.tail.append(vertex)
+                while idx < n_vertex:
+                    v = vertices[idx]
+                    layer = v.layer + 1
 
-        n_vertex = len(vertices)
-        idx = 0
+                    # 幫自己的下一層設置 layer
+                    for vf in v.forward:
+                        vf.setLayer(layer=layer)
+                        self.logger.debug(f"vertex: {vf}, layer: {vf.layer}", extra=self.extra)
+                        vertices.append(vf)
 
-        while idx < n_vertex:
-            vertex = vertices[idx]
-            layer = vertex.layer + 1
+                    n_vertex = len(vertices)
+                    idx += 1
 
-            # 幫自己的下一層設置 layer
-            for v in vertex.forward:
-                v.setLayer(layer=layer)
-                self.logger.debug(f"vertex: {v}, layer: {v.layer}", extra=self.extra)
-                vertices.append(v)
+        for vertex in self.vertices:
+            layer = vertex.layer
 
-            n_vertex = len(vertices)
-            idx += 1
+            if not self.layer_vertices.__contains__(layer):
+                self.layer.append(layer)
+                self.layer_vertices[layer] = []
+
+            self.layer_vertices[layer].append(vertex)
+
+        self.layer.sort()
 
     # 移除環狀結構
     def prune(self):
@@ -249,39 +229,44 @@ class Graph:
             self.logger.debug(f"vertex: {vertex}", extra=self.extra)
             vertex.prune()
 
-    def call(self, input_data):
-        output = []
+    def setCells(self, cells):
+        for vertex in self.vertices:
+            vid = vertex.vertex_id
+            vertex.setCell(cell=cells[vid])
 
-        # for head in self.head:
-        #     output = head.call(input_data=input_data)
-        #
-        # output = []
-        # c, h, w = 0, 0, 0
-        #
-        # for vertex in self.forward:
-        #     x = vertex.call(input_data=x)
-        #     output.append(x)
-        #
-        #     shape = x.shape
-        #     c = max(c, shape[0])
-        #     h = max(h, shape[1])
-        #     w = max(w, shape[2])
-        #
-        # self.logger.debug(f"c: {c}, h: {h}, w: {w}", extra=self.extra)
-        #
-        # n_output = len(output)
-        # self.logger.debug(f"n_output: {n_output}", extra=self.extra)
-        #
-        # for i in range(n_output):
-        #     out = output[i]
-        #     shape = out.shape
-        #
-        #     output[i] = np.pad(output[i],
-        #                        pad_width=((0, c - shape[0]), (0, h - shape[1]), (0, w - shape[2])),
-        #                        mode='constant',
-        #                        constant_values=0)
-        #
-        # return output
+    def call(self, input_data):
+        # region Head
+        layer_vertices = self.layer_vertices[0]
+
+        for vertex in layer_vertices:
+            vertex.call(input_data=input_data)
+        # endregion
+
+        # region Body
+        n_layer = len(self.layer)
+
+        # 這裡有計算最後一個 layer
+        for layer in range(1, n_layer):
+            layer_vertices = self.layer_vertices[layer]
+
+            for vertex in layer_vertices:
+                vertex.call()
+        # endregion
+
+        # region Tail
+        layer = self.layer[-1]
+        layer_vertices = self.layer_vertices[layer]
+        outputs = []
+
+        # 取出最後一個 layer 的輸出
+        for vertex in layer_vertices:
+            outputs.append(vertex.output)
+
+        # 將多筆輸出合併成最終輸出
+        result = combineOutputs(*outputs)
+        # endregion
+
+        return result
 
 
 # TODO: 或許應直接發展網狀結構，但輸入直線型的基因定義，直接退化成直線型
@@ -298,10 +283,8 @@ class Structure:
         adjacency_matrix = gene.reshape((n_cell, n_cell))
         self.graph.loadAdjacencyMatrix(matrix=adjacency_matrix, n_cell=n_cell)
 
-    def loadCells(self, cells):
-        for vertex in self.graph.vertices:
-            vid = vertex.vertex_id
-            vertex.setCell(cell=cells[vid])
+    def setCells(self, cells):
+        self.graph.setCells(cells=cells)
 
     def call(self, input_data):
         output = self.graph.call(input_data=input_data)
@@ -352,6 +335,8 @@ def combineOutputs(*outputs):
 
 
 if __name__ == "__main__":
+    from cell import ArbitraryCell
+
     def testGraph1():
         n_cell = 10
         gene = createGraphStructure(n_cell=n_cell, p_rate=0.1)
@@ -365,21 +350,16 @@ if __name__ == "__main__":
         for vertex in graph.vertices:
             print(vertex)
 
-        print(f"head: {graph.head}")
-        print(f"tail: {graph.tail}")
-
 
     def testVertexOneToMulti():
-        from cell import ArbitraryCell
-
         v1 = Vertex(vertex_id=0)
-        v1.loadCell(cell=ArbitraryCell(cell=np.random.rand(1, 1, 4)))
+        v1.setCell(cell=ArbitraryCell(cell=np.random.rand(1, 1, 4)))
 
         v2 = Vertex(vertex_id=1)
-        v2.loadCell(cell=ArbitraryCell(cell=np.random.rand(1, 2, 3)))
+        v2.setCell(cell=ArbitraryCell(cell=np.random.rand(1, 2, 3)))
 
         v3 = Vertex(vertex_id=2)
-        v3.loadCell(cell=ArbitraryCell(cell=np.random.rand(1, 3, 2)))
+        v3.setCell(cell=ArbitraryCell(cell=np.random.rand(1, 3, 2)))
 
         v1.addForward(v2)
         v2.addBackward(v1)
@@ -401,16 +381,14 @@ if __name__ == "__main__":
 
 
     def testVertexMultiToOne():
-        from cell import ArbitraryCell
-
         v1 = Vertex(vertex_id=0)
-        v1.loadCell(cell=ArbitraryCell(cell=np.random.rand(1, 1, 4)))
+        v1.setCell(cell=ArbitraryCell(cell=np.random.rand(1, 1, 4)))
 
         v2 = Vertex(vertex_id=1)
-        v2.loadCell(cell=ArbitraryCell(cell=np.random.rand(1, 2, 3)))
+        v2.setCell(cell=ArbitraryCell(cell=np.random.rand(1, 2, 3)))
 
         v3 = Vertex(vertex_id=2)
-        v3.loadCell(cell=ArbitraryCell(cell=np.random.rand(1, 3, 2)))
+        v3.setCell(cell=ArbitraryCell(cell=np.random.rand(1, 3, 2)))
 
         v1.addForward(v3)
         v3.addBackward(v1)
@@ -426,32 +404,35 @@ if __name__ == "__main__":
         v2.call(input_data=x2)  # (1, 2, 3)
 
         # combine (1, 1, 4) with (1, 2, 3) -> (2, 2, 4)
-        x3 = combineOutputs(v1.output, v2.output)
-        v3.call(input_data=x3)  # (1, 3, 2)
+        # x3 = combineOutputs(v1.output, v2.output)
+        # v3.call(input_data=x3)
+        v3.call()  # (1, 3, 2)
 
 
-    # def testGraph2():
-    from cell import ArbitraryCell
+    def testGraph2():
+        graph = Graph()
 
-    graph = Graph()
+        v1 = Vertex(vertex_id=0)
+        v1.setCell(cell=ArbitraryCell(cell=np.random.rand(1, 1, 4)))
+        graph.addVertex(v1)
 
-    v1 = Vertex(vertex_id=0)
-    v1.loadCell(cell=ArbitraryCell(cell=np.random.rand(1, 1, 4)))
-    graph.addVertex(v1)
+        v2 = Vertex(vertex_id=1)
+        v2.setCell(cell=ArbitraryCell(cell=np.random.rand(1, 2, 3)))
+        graph.addVertex(v2)
 
-    v2 = Vertex(vertex_id=1)
-    v2.loadCell(cell=ArbitraryCell(cell=np.random.rand(1, 2, 3)))
-    graph.addVertex(v2)
+        v3 = Vertex(vertex_id=2)
+        v3.setCell(cell=ArbitraryCell(cell=np.random.rand(1, 3, 2)))
+        graph.addVertex(v3)
 
-    v3 = Vertex(vertex_id=2)
-    v3.loadCell(cell=ArbitraryCell(cell=np.random.rand(1, 3, 2)))
-    graph.addVertex(v3)
+        v4 = Vertex(vertex_id=3)
+        v4.setCell(cell=ArbitraryCell(cell=np.random.rand(1, 5, 2)))
+        graph.addVertex(v4)
 
-    v4 = Vertex(vertex_id=3)
-    graph.addVertex(v4)
+        graph.addEdge(v1, v2)
+        graph.addEdge(v2, v3)
+        graph.addEdge(v4, v3)
 
-    graph.addEdge(v1, v2)
-    graph.addEdge(v2, v3)
-    graph.addEdge(v4, v3)
-
-    graph.build()
+        graph.build()
+        print("==================================================")
+        output = graph.call(input_data=np.random.rand(1, 3, 5))
+        print("output:", output.shape)

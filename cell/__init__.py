@@ -103,7 +103,7 @@ class RawCell(Cell):
         super().__init__(logger_dir=logger_dir, logger_name=logger_name)
 
     def call(self, input_data):
-        # TODO: 考慮多個輸入
+        # input_data 在輸入前，會將多個輸入根據各維度最大值來做合併，因此就算從多個節點獲得數據，輸入也只會有一個
         return input_data
 
 
@@ -123,14 +123,13 @@ class ArbitraryCell(Cell):
         h_hat = max(h, shape[1])
         w_hat = max(w, shape[2])
 
+        # 考慮 self.cell, x 形狀不同且無法 Broadcast 的情況
         x = np.pad(input_data,
                    pad_width=((0, c_hat - shape[0]), (0, h_hat - shape[1]), (0, w_hat - shape[2])),
                    mode='constant',
                    constant_values=1)
 
         x = x[:c, :h, :w]
-
-        # TODO: 考慮 self.cell, x 形狀不同且無法 Broadcast 的情況
         output = self.cell * x
 
         return output
