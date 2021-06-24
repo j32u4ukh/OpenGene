@@ -73,6 +73,12 @@ class CnnCell(BaseCell):
         h_number = (height - self.h_kernal) / self.h_stride + 1
         w_number = (width - self.w_kernal) / self.w_stride + 1
 
+        # TODO: CNN kernal 形成稀疏矩陣，以減少計算量
+        #  https://chih-sheng-huang821.medium.com/
+        #  %E5%8D%B7%E7%A9%8D%E7%A5%9E%E7%B6%93%E7%B6%B2%E8%B7%AF-convolutional-neural-network-cnn-
+        #  %E5%8D%B7%E7%A9%8D%E8%A8%88%E7%AE%97%E7%9A%84%E5%80%92%E5%82%B3%E9%81%9E%E6%8E%A8%E5%B0%8E%E8%88%87
+        #  %E7%A8%80%E7%96%8F%E7%9F%A9%E9%99%A3%E8%A7%80%E9%BB%9E%E4%BE%86%E7%9C%8B%E5%8D%B7%E7%A9%8D%E8%A8%88%E7%AE
+        #  %97-e82ac16e510f
         for h in range(h_number):
             for w in range(w_number):
                 pass
