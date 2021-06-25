@@ -58,6 +58,10 @@ class BaseCell(Cell, metaclass=ABCMeta):
         self.__class__.n_struct = n_struct
         self.__class__.n_value = n_value
 
+    @staticmethod
+    def createCellGene():
+        return createGene(n_gene=BaseCell.n_gene - BaseCell.n_code)
+
     @classmethod
     def getGeneDemand(cls):
         """

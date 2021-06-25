@@ -1,8 +1,10 @@
 import datetime
 import math
-from cell import BaseCell
-from gene import translateStruct
+
 import numpy as np
+
+from cell import BaseCell
+from gene import translateStruct, Gene
 
 
 class CnnCell(BaseCell):
@@ -14,17 +16,19 @@ class CnnCell(BaseCell):
         # 結構基因組
         struct_genome = self.nextStructGenome()
 
-        self.kernal = None
+        self.kernel = None
 
         # kernal size 應保持在奇數 (1, 2, 3, 4) -> (1, 3, 5, 7)
         # kernal 只有二維(長、寬)，因此輸入數據有多少通道，輸出就有多少通道
         # kernal 最大尺寸為 7 * 7 = 49，因此至少需要 49 個數值基因組
-        self.h_kernal = translateStruct(next(struct_genome)) * 2 - 1
-        self.w_kernal = translateStruct(next(struct_genome)) * 2 - 1
+        self.h_kernel = translateStruct(next(struct_genome)) * 2 - 1
+        self.w_kernel = translateStruct(next(struct_genome)) * 2 - 1
 
         # stride: (1, 2, 3, 4)
         self.h_stride = translateStruct(next(struct_genome))
         self.w_stride = translateStruct(next(struct_genome))
+
+        self.build()
 
     @staticmethod
     def getPadding(input_size, kernal_size, stride):
@@ -37,13 +41,12 @@ class CnnCell(BaseCell):
         :param stride: kernal 步長
         :return: 單邊 padding 個數
         """
-        # 使用 abs 以確保圖片尺寸比 kernal 尺寸小的時候，也能正常運作
-        padding = math.ceil(abs(input_size - kernal_size) / stride)
+        padding = stride * (input_size - 1) - input_size + kernal_size
 
         if padding & 1:
             padding += 1
 
-        return padding / 2
+        return int(padding / 2)
 
     @staticmethod
     def getNumber(input_size, kernal_size, stride):
@@ -51,43 +54,48 @@ class CnnCell(BaseCell):
 
     def build(self):
         value_genome = self.nextValueGenome()
-        kernal_size = self.h_kernal * self.w_kernal
-        kernal = []
+        kernel_size = self.h_kernel * self.w_kernel
+        kernel = []
 
-        for k in range(kernal_size):
-            value = next(value_genome)
-            kernal.append(value)
+        for k in range(kernel_size):
+            value = Gene.signValue(next(value_genome))
+            kernel.append(value)
 
-        self.kernal = np.array(kernal).reshape((self.h_kernal, self.w_kernal))
+        self.kernel = np.array(kernel).reshape((self.h_kernel, self.w_kernel))
 
-    def call(self, input_data:np.array):
-        _, h, w = input_data.shape
-        h_padding = CnnCell.getPadding(input_size=h, kernal_size=self.h_kernal, stride=self.h_stride)
-        w_padding = CnnCell.getPadding(input_size=w, kernal_size=self.w_kernal, stride=self.w_stride)
+    def call(self, input_data: np.array):
+        c, h, w = input_data.shape
+        outputs = np.empty((c, h, w))
+
+        h_padding = CnnCell.getPadding(input_size=h, kernal_size=self.h_kernel, stride=self.h_stride)
+        w_padding = CnnCell.getPadding(input_size=w, kernal_size=self.w_kernel, stride=self.w_stride)
+
         x = np.pad(input_data,
                    pad_width=((0, 0), (h_padding, h_padding), (w_padding, w_padding)),
                    mode='constant',
-                   constant_values=0.0)
+                   constant_values=0)
 
         _, height, width = x.shape
-        h_number = (height - self.h_kernal) / self.h_stride + 1
-        w_number = (width - self.w_kernal) / self.w_stride + 1
+        height = height - self.h_kernel + 1
+        width = width - self.w_kernel + 1
 
-        # TODO: CNN kernal 形成稀疏矩陣，以減少計算量
-        #  https://chih-sheng-huang821.medium.com/
-        #  %E5%8D%B7%E7%A9%8D%E7%A5%9E%E7%B6%93%E7%B6%B2%E8%B7%AF-convolutional-neural-network-cnn-
-        #  %E5%8D%B7%E7%A9%8D%E8%A8%88%E7%AE%97%E7%9A%84%E5%80%92%E5%82%B3%E9%81%9E%E6%8E%A8%E5%B0%8E%E8%88%87
-        #  %E7%A8%80%E7%96%8F%E7%9F%A9%E9%99%A3%E8%A7%80%E9%BB%9E%E4%BE%86%E7%9C%8B%E5%8D%B7%E7%A9%8D%E8%A8%88%E7%AE
-        #  %97-e82ac16e510f
-        for h in range(h_number):
-            for w in range(w_number):
-                pass
+        for hi, h in enumerate(range(0, height, self.h_stride)):
+            for wi, w in enumerate(range(0, width, self.w_stride)):
+                output = np.sum(x[:, h: h + self.h_kernel, w: w + self.w_kernel] * self.kernel, axis=(1, 2))
+                output = output.reshape((-1, 1, 1))
+                outputs[:, hi: hi + 1, wi: wi + 1] = output
 
-        """
-        outputs = np.empty(shape=(out_height, out_width))
-        for r, y in enumerate(range(0, padded_inputs.shape[0]-ks[1]+1, stride)):
-            for c, x in enumerate(range(0, padded_inputs.shape[1]-ks[0]+1, stride)):
-                outputs[r][c] = np.sum(padded_inputs[y:y+ks[1], x:x+ks[0], :] * kernel)
-        return outputs
-        """
+        return np.array(outputs)
 
+
+if __name__ == "__main__":
+    gene = CnnCell.createCellGene()
+    cnn = CnnCell(gene=gene)
+    print(f"(h_kernal, w_kernal) = ({cnn.h_kernel}, {cnn.w_kernel})")
+    print(f"(h_stride, w_stride) = ({cnn.h_stride}, {cnn.w_stride})")
+
+    x = np.random.rand(2, 3, 9)
+    print("x\n", x)
+    output = cnn.call(input_data=x)
+    print(f"output.shape = {output.shape}")
+    print("output\n", output)
