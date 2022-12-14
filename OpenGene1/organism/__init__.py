@@ -2,9 +2,9 @@ from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
-from cell import Cell
-from gene import translateStruct, createGene
-from cell.cell_factory import CellFactory
+from OpenGene1.cell import Cell
+from OpenGene1.gene import translateStruct, createGene
+from OpenGene1.cell.cell_factory import CellFactory
 
 
 class Organism(metaclass=ABCMeta):

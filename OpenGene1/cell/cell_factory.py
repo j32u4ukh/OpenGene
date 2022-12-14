@@ -1,5 +1,5 @@
-from cell import Cell, RawCell, DenseCell
-from gene import translateStruct
+from OpenGene1.cell import Cell, RawCell, DenseCell
+from OpenGene1.gene import translateStruct
 
 
 # 細胞工廠，根據基因定義，返回相對應的細胞

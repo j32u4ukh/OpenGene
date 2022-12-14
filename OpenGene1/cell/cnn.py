@@ -3,8 +3,8 @@ import math
 
 import numpy as np
 
-from cell import BaseCell
-from gene import translateStruct, Gene
+from OpenGene1.cell import BaseCell
+from OpenGene1.gene import translateStruct, Gene
 
 
 class CnnCell(BaseCell):

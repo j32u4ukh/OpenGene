@@ -4,8 +4,8 @@ import math
 import numpy as np
 
 import utils.math as umath
-from cell import BaseCell
-from gene import Gene, createGene, translateStruct
+from OpenGene1.cell import BaseCell
+from OpenGene1.gene import Gene, createGene, translateStruct
 
 
 class DenseCell(BaseCell):

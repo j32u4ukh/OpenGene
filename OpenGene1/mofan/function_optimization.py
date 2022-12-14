@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from mofan.evolution import FragmentEvolution
+from OpenGene1.mofan.evolution import FragmentEvolution
 
 
 def func(x):

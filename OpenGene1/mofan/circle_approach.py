@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from mofan.evolution import FragmentEvolution
+from OpenGene1.mofan.evolution import FragmentEvolution
 
 CENTER_X = 0.0
 CENTER_Y = 0.0

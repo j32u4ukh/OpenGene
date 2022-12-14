@@ -1,8 +1,8 @@
 import os
 
-from organism import Organism
-from organism.linear_organism import LinearOrganism
-from population import Population
+from OpenGene1.organism import Organism
+from OpenGene1.organism.linear_organism import LinearOrganism
+from OpenGene1.population import Population
 
 """
 mode 1

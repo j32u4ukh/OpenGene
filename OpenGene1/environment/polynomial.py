@@ -1,5 +1,5 @@
-from environment import Environment
-from population.polynomial import UnaryLinearPopulation
+from OpenGene1.environment import Environment
+from OpenGene1.population.polynomial import UnaryLinearPopulation
 import numpy as np
 
 

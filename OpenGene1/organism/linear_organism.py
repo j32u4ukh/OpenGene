@@ -1,7 +1,7 @@
 import numpy as np
 
-from organism import Organism
-from structure.linear_structure import LinearStructure
+from OpenGene1.organism import Organism
+from OpenGene1.structure.linear_structure import LinearStructure
 
 
 # 直線結構型生物: 採用"直線串接型"的生物，不會因任務不同而個別設立類別

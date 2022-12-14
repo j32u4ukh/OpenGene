@@ -4,7 +4,7 @@ from abc import ABCMeta, abstractmethod
 
 import numpy as np
 
-from gene import Gene, createGene
+from OpenGene1.gene import Gene, createGene
 from submodule.Xu3.utils import getLogger
 
 
@@ -14,7 +14,7 @@ class Cell(metaclass=ABCMeta):
         self.logger_name = logger_name
         self.extra = {"className": self.__class__.__name__}
         self.logger = getLogger(logger_name=self.logger_name,
-                                to_file=True,
+                                to_file=False,
                                 time_file=False,
                                 file_dir=self.logger_dir,
                                 instance=True)
