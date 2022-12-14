@@ -88,6 +88,7 @@ class Vertex:
     def setCell(self, cell):
         self.cell = cell
 
+    # TODO: 返回輸出值
     def call(self, input_data: np.array = None):
         if input_data is None:
             last_outputs = []
@@ -436,3 +437,6 @@ if __name__ == "__main__":
         print("==================================================")
         output = graph.call(input_data=np.random.rand(1, 3, 5))
         print("output:", output.shape)
+
+
+    testGraph2()
